@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QHBoxLayout,
     QDialog,
+    QApplication,
 )
 from PySide6.QtCore import Qt, QPropertyAnimation, QSize, QEasingCurve
 from PySide6.QtGui import QIcon, QPixmap
@@ -201,4 +202,12 @@ class Sidebar(QWidget):
         )
 
         if dialog.exec() == QDialog.Accepted:
-            print("Cerrar sesión confirmado")
+            QApplication.quit()
+            
+    def set_active(self, index: int):
+        for i, btn in enumerate(self.nav_buttons):
+            btn.setObjectName(
+                "sidebarItemActive" if i == index else "sidebarItem"
+            )
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)

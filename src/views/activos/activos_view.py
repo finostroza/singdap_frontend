@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QLineEdit, QComboBox,
     QFrame, QHeaderView
 )
-from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QSize
+from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale
 from PySide6.QtGui import QIcon
 
 from src.components.activo_dialog import ActivoDialog
@@ -74,16 +74,27 @@ class ActivosView(QWidget):
         # Filters
         # ===============================
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Buscar...")
-        self.search_input.returnPressed.connect(self._reload_all)
+        self.search_input.setPlaceholderText("Buscar por nombre o ID…")
+        self.search_input.returnPressed.connect(self._on_search)
+
+        search_action = self.search_input.addAction(
+            QIcon("src/resources/icons/search.svg"),
+            QLineEdit.TrailingPosition
+        )
+        search_action.setToolTip("Buscar")
+        search_action.triggered.connect(self._on_search)
 
         self.subsecretaria_filter = QComboBox()
         self.tipo_filter = QComboBox()
         self.eipd_filter = QComboBox()
 
-        self.subsecretaria_filter.currentIndexChanged.connect(self._reload_all)
-        self.tipo_filter.currentIndexChanged.connect(self._reload_all)
-        self.eipd_filter.currentIndexChanged.connect(self._reload_all)
+        self.subsecretaria_filter.currentIndexChanged.connect(self._on_filter_change)
+        self.tipo_filter.currentIndexChanged.connect(self._on_filter_change)
+        self.eipd_filter.currentIndexChanged.connect(self._on_filter_change)
+
+        self.clear_filters_btn = QPushButton("Limpiar filtros")
+        self.clear_filters_btn.setObjectName("secondaryButton")
+        self.clear_filters_btn.clicked.connect(self._clear_filters)
 
         self.new_button = QPushButton("+ Nuevo")
         self.new_button.setObjectName("primaryButton")
@@ -94,6 +105,7 @@ class ActivosView(QWidget):
         filters_layout.addWidget(self.subsecretaria_filter)
         filters_layout.addWidget(self.tipo_filter)
         filters_layout.addWidget(self.eipd_filter)
+        filters_layout.addWidget(self.clear_filters_btn)
         filters_layout.addStretch()
         filters_layout.addWidget(self.new_button)
 
@@ -117,11 +129,9 @@ class ActivosView(QWidget):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(8, QHeaderView.Fixed)
         self.table.setColumnWidth(8, 96)
-
         header.setSectionResizeMode(1, QHeaderView.Stretch)
         header.setSectionResizeMode(4, QHeaderView.Stretch)
 
-        # Altura fija 7 filas
         self.table.setMinimumHeight(40 + (7 * 44))
         self.table.setMaximumHeight(40 + (7 * 44))
 
@@ -155,7 +165,7 @@ class ActivosView(QWidget):
         layout.addStretch()
 
         # ===============================
-        # Load initial data
+        # Initial load
         # ===============================
         self._load_filters_from_api()
         self._reload_all()
@@ -208,6 +218,22 @@ class ActivosView(QWidget):
         for item in self.api.get(endpoint):
             combo.addItem(item["nombre"], item["id"])
 
+    def _clear_filters(self):
+        self.search_input.clear()
+        self.subsecretaria_filter.setCurrentIndex(0)
+        self.tipo_filter.setCurrentIndex(0)
+        self.eipd_filter.setCurrentIndex(0)
+        self.current_page = 1
+        self._reload_all()
+
+    def _on_search(self):
+        self.current_page = 1
+        self._reload_all()
+
+    def _on_filter_change(self):
+        self.current_page = 1
+        self._reload_all()
+
     # ======================================================
     # Data
     # ======================================================
@@ -232,7 +258,6 @@ class ActivosView(QWidget):
             url += f"&estado_evaluacion_id={self.eipd_filter.currentData()}"
 
         response = self.api.get(url)
-
         items = response["items"]
         self.total_pages = response["pages"]
 
@@ -251,8 +276,7 @@ class ActivosView(QWidget):
             ]
 
             for col, val in enumerate(values):
-                cell = QTableWidgetItem(str(val))
-                self.table.setItem(row, col, cell)
+                self.table.setItem(row, col, QTableWidgetItem(str(val)))
 
             self._add_actions(row, item["activo_id"])
 

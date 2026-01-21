@@ -577,3 +577,91 @@ QScrollArea > QWidget > QWidget {
 #formLargeInput:focus {
     border: 2px solid #006FB3;
 }
+
+QToolButton {
+    border: none;
+    padding: 6px;
+}
+
+QToolButton:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+}
+
+QPushButton#secondaryButton {
+    background-color: transparent;
+    border: 1px solid #D0D7DE;
+    color: #374151;
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+QPushButton#secondaryButton:hover {
+    background-color: #F3F4F6;
+}
+
+QPushButton#secondaryButton:pressed {
+    background-color: #E5E7EB;
+}
+
+/* Mantenedores */
+QFrame#catalogCard {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+QLabel#cardTitle {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1F2937;
+}
+
+QListWidget#catalogList {
+    border: none;
+}
+
+QPushButton#primaryButtonSmall {
+    background-color: #006FB3;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+QPushButton#primaryButtonSmall:hover {
+    background-color: #084298;
+}
+
+/* Usuarios */
+QFrame#card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+QLabel#pageSubtitle {
+    color: #6B7280;
+}
+
+QPushButton#tab {
+    background: transparent;
+    border: 1px solid #E5E7EB;
+    padding: 6px 14px;
+    border-radius: 20px;
+}
+
+QPushButton#tabActive {
+    background: #006FB3;
+    color: white;
+    border-radius: 20px;
+    padding: 6px 14px;
+}
+
+QFrame#packCard {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 8px;
+}
