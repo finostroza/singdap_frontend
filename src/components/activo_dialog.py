@@ -92,9 +92,13 @@ class ActivoDialog(QDialog):
         main_layout.addWidget(content)
 
         # ===============================
-        # Load combos + data
+        # Load combos + signals
         # ===============================
         self._load_combos()
+
+        self.subsecretaria_combo.currentIndexChanged.connect(
+            self._on_subsecretaria_changed
+        )
 
         if self.is_edit:
             self._load_activo()
@@ -240,13 +244,27 @@ class ActivoDialog(QDialog):
         self._load_combo(self.importancia_combo, "/catalogos/importancia")
 
         self._load_combo(self.subsecretaria_combo, "/setup/subsecretarias")
-        self._load_combo(self.division_combo, "/setup/divisiones")
+        self.division_combo.clear()  # 🔑 ahora depende de subsecretaría
         self._load_combo(self.marco_combo, "/catalogos/marco-habilitante")
 
         self._load_combo(self.criticidad_combo, "/catalogos/criticidad")
         self._load_combo(self.confidencialidad_combo, "/catalogos/nivel-confidencialidad")
         self._load_combo(self.controles_combo, "/catalogos/controles-acceso")
         self._load_combo(self.medidas_combo, "/catalogos/medidas-seguridad")
+
+    def _on_subsecretaria_changed(self):
+        subsecretaria_id = self.subsecretaria_combo.currentData()
+        self.division_combo.clear()
+
+        if not subsecretaria_id:
+            return
+
+        divisions = self.api.get(
+                    f"/setup/divisiones?subsecretaria_id={subsecretaria_id}".replace("/?", "?")
+                    )
+
+        for div in divisions:
+            self.division_combo.addItem(div["nombre"], div["id"])
 
     def _load_activo(self):
         data = self.api.get(f"/activos/{self.activo_id}")
@@ -256,15 +274,22 @@ class ActivoDialog(QDialog):
         self.responsable_input.setText(data.get("responsable") or "")
         self.roles_input.setText(data.get("rol") or "")
 
+        self.url_input.setText(data.get("url_direccion") or "")
+        self.procesos_input.setText(data.get("procesos_vinculados") or "")
+        self.infra_input.setText(data.get("infraestructura_ti") or "")
+        self.convenio_input.setText(data.get("convenio_vinculado") or "")
+
         self._set_combo_by_data(self.tipo_activo_combo, data.get("tipo_activo_id"))
         self._set_combo_by_data(self.estado_activo_combo, data.get("estado_activo_id"))
         self._set_combo_by_data(self.categoria_combo, data.get("categoria_id"))
         self._set_combo_by_data(self.importancia_combo, data.get("importancia_id"))
 
+        # 🔑 Orden correcto
         self._set_combo_by_data(self.subsecretaria_combo, data.get("subsecretaria_id"))
+        self._on_subsecretaria_changed()
         self._set_combo_by_data(self.division_combo, data.get("division_id"))
-        self._set_combo_by_data(self.marco_combo, data.get("marco_habilitante_id"))
 
+        self._set_combo_by_data(self.marco_combo, data.get("marco_habilitante_id"))
         self._set_combo_by_data(self.criticidad_combo, data.get("criticidad_id"))
         self._set_combo_by_data(self.confidencialidad_combo, data.get("nivel_confidencialidad_id"))
         self._set_combo_by_data(self.controles_combo, data.get("controles_acceso_id"))

@@ -4,7 +4,7 @@ from src.config.settings import API_BASE_URL
 
 class ApiClient:
     def __init__(self):
-        self.base_url = API_BASE_URL
+        self.base_url = API_BASE_URL.rstrip('/')
         self.token = None
 
     def set_token(self, token: str):
@@ -18,12 +18,16 @@ class ApiClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
+    
+    def _build_url(self, path: str) -> str:
+        # 👉 Evita // y permite query params sin problemas
+        return f"{self.base_url}/{path.lstrip('/')}"
 
     # ===============================
     # GET
     # ===============================
     def get(self, path: str):
-        url = f"{self.base_url}{path}"
+        url = self._build_url(path)
         response = requests.get(url, headers=self._headers())
         response.raise_for_status()
         return response.json()

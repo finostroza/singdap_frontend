@@ -31,7 +31,7 @@ class ActivosView(QWidget):
         # ===============================
         # Header user
         # ===============================
-        self.user_label = QLabel("Juan Pérez")
+        self.user_label = QLabel("Felipe Inostroza")
         self.user_label.setObjectName("topUser")
 
         self.datetime_label = QLabel()
