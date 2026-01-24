@@ -9,9 +9,13 @@ from src.components.activo_dialog import ActivoDialog
 from src.components.alert_dialog import AlertDialog
 from src.core.api_client import ApiClient
 from src.workers.api_worker import ApiWorker
+from src.workers.combo_loader import ComboLoaderRunnable
+from src.services.catalogo_service import CatalogoService
 from src.components.loading_overlay import LoadingOverlay
 from src.services.logger_service import LoggerService
 from utils import icon
+from PySide6.QtCore import QThreadPool
+from functools import partial
 
 
 class ActivosView(QWidget):
@@ -21,7 +25,13 @@ class ActivosView(QWidget):
         # ===============================
         # API
         # ===============================
+        # ===============================
+        # API & Services
+        # ===============================
         self.api = ApiClient()
+        self.catalogo_service = CatalogoService()
+        self.thread_pool = QThreadPool.globalInstance()
+        self._active_runnables = [] # Prevent GC
 
         # ===============================
         # Pagination
@@ -170,7 +180,11 @@ class ActivosView(QWidget):
         # Initial load
         # ===============================
         self.loading_overlay = LoadingOverlay(self)
-        self._load_filters_from_api()
+        self.loading_overlay = LoadingOverlay(self)
+        
+        # Async load filters (cached)
+        QTimer.singleShot(0, self._init_async_filters)
+        
         LoggerService().log_event("Usuario accedió a Inventario de Activos")
         self._reload_all()
 
@@ -215,16 +229,34 @@ class ActivosView(QWidget):
     # Filters
     # ======================================================
 
-    def _load_filters_from_api(self):
-        self._load_combo(self.subsecretaria_filter, "/setup/subsecretarias", "Todas las Subsecretarías")
-        self._load_combo(self.tipo_filter, "/catalogos/tipo-activo", "Todos los tipos")
-        self._load_combo(self.eipd_filter, "/catalogos/estado-evaluacion", "Estado EIPD: Todos")
+    def _init_async_filters(self):
+        # Filters to load: combo, endpoint, cache_key, default_text
+        filters_to_load = [
+            (self.subsecretaria_filter, "/setup/subsecretarias", "catalogo_subsecretarias", "Todas las Subsecretarías"),
+            (self.tipo_filter, "/catalogos/tipo-activo", "catalogo_tipos", "Todos los tipos"),
+            (self.eipd_filter, "/catalogos/estado-evaluacion", "catalogo_estado_evaluacion", "Estado EIPD: Todos"),
+        ]
 
-    def _load_combo(self, combo, endpoint, default):
+        for combo, endpoint, cache_key, default in filters_to_load:
+            self._start_combo_filter_loader(combo, endpoint, cache_key, default)
+
+    def _start_combo_filter_loader(self, combo, endpoint, cache_key, default):
+        # We reuse the logic from ActivoDialog but adapted for filters (with default option)
+        worker = ComboLoaderRunnable(self.catalogo_service.get_catalogo, endpoint, cache_key)
+        self._active_runnables.append(worker)
+
+        worker.signals.result.connect(partial(self._on_filter_data, combo, default))
+        # Errors in filters shouldn't crash app, just log
+        worker.signals.error.connect(lambda e: LoggerService().log_error(f"Error loading filter {endpoint}", e))
+        
+        self.thread_pool.start(worker)
+
+    def _on_filter_data(self, combo, default, data):
         combo.clear()
         combo.addItem(default, None)
-        for item in self.api.get(endpoint):
-            combo.addItem(item["nombre"], item["id"])
+        if data:
+            for item in data:
+                combo.addItem(item["nombre"], item["id"])
 
     def _clear_filters(self):
         self.search_input.clear()
