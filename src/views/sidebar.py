@@ -8,14 +8,16 @@ from PySide6.QtWidgets import (
     QDialog,
     QApplication,
 )
-from PySide6.QtCore import Qt, QPropertyAnimation, QSize, QEasingCurve
+from PySide6.QtCore import Qt, QPropertyAnimation, QSize, QEasingCurve, Signal
 from PySide6.QtGui import QPixmap
 
 from src.components.alert_dialog import AlertDialog
+from src.services.cache_manager import CacheManager
 from utils import icon, resource_path
 
 
 class Sidebar(QWidget):
+    logout_requested = Signal()
     def __init__(self):
         super().__init__()
 
@@ -202,9 +204,13 @@ class Sidebar(QWidget):
             cancel_text="Cancelar",
             parent=self,
         )
-
         if dialog.exec() == QDialog.Accepted:
-            QApplication.quit()
+            # Clear cache on logout
+            try:
+                CacheManager().clear()
+            except Exception:
+                pass
+            self.logout_requested.emit()
 
     def set_active(self, index: int):
         for i, btn in enumerate(self.nav_buttons):

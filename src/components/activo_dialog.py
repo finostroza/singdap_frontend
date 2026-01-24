@@ -20,11 +20,24 @@ from src.components.loading_overlay import LoadingOverlay
 from PySide6.QtCore import QTimer
 
 
+from src.workers.combo_loader import ComboLoaderRunnable
+from src.services.catalogo_service import CatalogoService
+from src.services.logger_service import LoggerService
+from PySide6.QtCore import QThreadPool, QTimer
+from functools import partial
+
+
 class ActivoDialog(QDialog):
     def __init__(self, parent=None, activo_id=None):
         super().__init__(parent)
 
         self.api = ApiClient()
+        self.catalogo_service = CatalogoService()
+        self.thread_pool = QThreadPool.globalInstance()
+        self.pending_loads = 0
+        self.asset_data = None # Store asset data for edit mode sync
+        self._active_runnables = [] # Keep refs to prevent GC crash
+        
         self.activo_id = activo_id
         self.is_edit = activo_id is not None
 
@@ -104,76 +117,87 @@ class ActivoDialog(QDialog):
 
         # Trigger async load
         QTimer.singleShot(0, self._init_async_load)
+        LoggerService().log_event(f"Abriendo formulario activo. Modo: {'Editar' if self.is_edit else 'Nuevo'}")
 
     def _init_async_load(self):
         self.loading_overlay.show_loading()
+        
+        # Parallel Load Configuration
+        combos_to_load = [
+            (self.tipo_activo_combo, "/catalogos/tipo-activo", "catalogo_tipos"),
+            (self.estado_activo_combo, "/catalogos/estado-activo", "catalogo_estados"),
+            (self.categoria_combo, "/catalogos/categoria-activo", "catalogo_categorias"),
+            (self.importancia_combo, "/catalogos/importancia", "catalogo_importancia"),
+            (self.subsecretaria_combo, "/setup/subsecretarias", "catalogo_subsecretarias"),
+            (self.marco_combo, "/catalogos/marco-habilitante", "catalogo_marco"),
+            (self.criticidad_combo, "/catalogos/criticidad", "catalogo_criticidad"),
+            (self.confidencialidad_combo, "/catalogos/nivel-confidencialidad", "catalogo_confidencialidad"),
+            (self.controles_combo, "/catalogos/controles-acceso", "catalogo_controles"),
+            (self.medidas_combo, "/catalogos/medidas-seguridad", "catalogo_medidas_seguridad"),
+        ]
 
-        def fetch_data():
-            # Determine calls
-            endpoints = {
-                "tipo_activo": "/catalogos/tipo-activo",
-                "estado_activo": "/catalogos/estado-activo",
-                "categoria_activo": "/catalogos/categoria-activo",
-                "importancia": "/catalogos/importancia",
-                "subsecretarias": "/setup/subsecretarias",
-                "marco_habilitante": "/catalogos/marco-habilitante",
-                "criticidad": "/catalogos/criticidad",
-                "nivel_confidencialidad": "/catalogos/nivel-confidencialidad",
-                "controles_acceso": "/catalogos/controles-acceso",
-                "medidas_seguridad": "/catalogos/medidas-seguridad"
-            }
-            results = {}
-            # 1. Load catalogs
-            for key, url in endpoints.items():
-                results[key] = self.api.get(url)
+        self.pending_loads = len(combos_to_load)
+        if self.is_edit:
+            self.pending_loads += 1 # Asset load
 
-            # 2. If Edit, load asset + specific divisions
-            if self.is_edit:
-                asset = self.api.get(f"/activos/{self.activo_id}")
-                results["asset"] = asset
-                
-                # Load divisions for the asset's subsecretaria
-                sub_id = asset.get("subsecretaria_id")
-                if sub_id:
-                    results["divisiones"] = self.api.get(f"/setup/divisiones?subsecretaria_id={sub_id}")
-            
-            return results
+        # Launch Combo Loaders
+        for combo, endpoint, cache_key in combos_to_load:
+            self._start_combo_loader(combo, endpoint, cache_key)
 
-        self.worker = ApiWorker(fetch_data, parent=self)
-        self.worker.finished.connect(self._on_data_ready)
-        self.worker.error.connect(self._on_load_error)
-        self.worker.start()
+        # Launch Asset Loader (if edit)
+        if self.is_edit:
+            self._start_asset_loader()
 
-    def _on_load_error(self, error):
-        self.loading_overlay.hide_loading()
-        print(f"Error loading dialog data: {error}")
-        self.reject()
+    def _start_combo_loader(self, combo, endpoint, cache_key):
+        worker = ComboLoaderRunnable(self.catalogo_service.get_catalogo, endpoint, cache_key)
+        
+        # Prevent GC crash by storing reference
+        self._active_runnables.append(worker)
 
-    def _on_data_ready(self, data):
-        # Populate catalogs
-        self._fill_combo(self.tipo_activo_combo, data["tipo_activo"])
-        self._fill_combo(self.estado_activo_combo, data["estado_activo"])
-        self._fill_combo(self.categoria_combo, data["categoria_activo"])
-        self._fill_combo(self.importancia_combo, data["importancia"])
-        self._fill_combo(self.subsecretaria_combo, data["subsecretarias"])
-        self._fill_combo(self.marco_combo, data["marco_habilitante"])
-        self._fill_combo(self.criticidad_combo, data["criticidad"])
-        self._fill_combo(self.confidencialidad_combo, data["nivel_confidencialidad"])
-        self._fill_combo(self.controles_combo, data["controles_acceso"])
-        self._fill_combo(self.medidas_combo, data["medidas_seguridad"])
+        # Use partial to pass arguments safely and correctly
+        worker.signals.result.connect(partial(self._on_combo_data, combo))
+        worker.signals.error.connect(self._on_load_error_combo)
+        worker.signals.finished.connect(self._check_finished)
+        
+        self.thread_pool.start(worker)
 
-        # Populate asset if edit
-        if self.is_edit and "asset" in data:
-            self._populate_asset_data(data["asset"], data.get("divisiones", []))
+    def _on_load_error_combo(self, error):
+        print(f"Combo load error: {error}")
+        # Still need to decrement pending
+        # self._check_finished() is connected to finished, which always runs, so no need to call it here manually
+        pass
 
-        self.loading_overlay.hide_loading()
+    def _start_asset_loader(self):
+        def fetch_asset():
+            asset = self.api.get(f"/activos/{self.activo_id}")
+            # If subsecretaria exists, we might need to load divisiones too, OR load them when sub change triggers.
+            # However, to be instant, better to fetch if needed.
+            # But the existing logic for subsecretaria change handles fetch.
+            # Let's rely on standard flow or optimizing later if needed. 
+            # Actually, to prevent empty division combo, we should fetch divisions if asset has sub_id
+            if asset.get("subsecretaria_id"):
+                 asset["_divisiones_preloaded"] = self.api.get(f"/setup/divisiones?subsecretaria_id={asset['subsecretaria_id']}")
+            return asset
 
-    def _fill_combo(self, combo, items):
+        worker = ApiWorker(fetch_asset, parent=self)
+        worker.finished.connect(self._on_asset_data)
+        worker.error.connect(self._on_load_error)
+        worker.start()
+
+    def _on_combo_data(self, combo, data):
         combo.clear()
-        for item in items:
-            combo.addItem(item["nombre"], item["id"])
+        if data:
+            for item in data:
+                combo.addItem(item["nombre"], item["id"])
+        
+        # If we have asset data waiting, try to set value now
+        if self.asset_data:
+            self._try_set_combo_from_asset(combo)
 
-    def _populate_asset_data(self, data, divisions):
+    def _on_asset_data(self, data):
+        self.asset_data = data
+        
+        # Text fields
         self.nombre_input.setText(data["nombre_activo"])
         self.descripcion_input.setText(data.get("descripcion") or "")
         self.responsable_input.setText(data.get("responsable") or "")
@@ -182,29 +206,51 @@ class ActivoDialog(QDialog):
         self.procesos_input.setText(data.get("procesos_vinculados") or "")
         self.infra_input.setText(data.get("infraestructura_ti") or "")
         self.convenio_input.setText(data.get("convenio_vinculado") or "")
+        self.tipo_sensible_input.setText(data.get("tipo_sensible") or "")
+        self.datos_sensibles_combo.setCurrentIndex(1 if data.get("datos_sensibles") else 0)
 
+        # Preloaded divisions special handling
+        if "_divisiones_preloaded" in data:
+            self.division_combo.clear()
+            for div in data["_divisiones_preloaded"]:
+                 self.division_combo.addItem(div["nombre"], div["id"])
+
+        # Try to set all combos (some might be ready, some not)
+        self._try_set_all_combos()
+        
+        # Manually trigger finish check for asset worker
+        self._check_finished()
+
+    def _try_set_all_combos(self):
+        if not self.asset_data: return
+        
+        data = self.asset_data
         self._set_combo_by_data(self.tipo_activo_combo, data.get("tipo_activo_id"))
         self._set_combo_by_data(self.estado_activo_combo, data.get("estado_activo_id"))
         self._set_combo_by_data(self.categoria_combo, data.get("categoria_id"))
         self._set_combo_by_data(self.importancia_combo, data.get("importancia_id"))
-
-        # Subsecretaria
         self._set_combo_by_data(self.subsecretaria_combo, data.get("subsecretaria_id"))
-        
-        # Divisions (pre-fetched)
-        self.division_combo.clear()
-        for div in divisions:
-            self.division_combo.addItem(div["nombre"], div["id"])
         self._set_combo_by_data(self.division_combo, data.get("division_id"))
-
         self._set_combo_by_data(self.marco_combo, data.get("marco_habilitante_id"))
         self._set_combo_by_data(self.criticidad_combo, data.get("criticidad_id"))
         self._set_combo_by_data(self.confidencialidad_combo, data.get("nivel_confidencialidad_id"))
         self._set_combo_by_data(self.controles_combo, data.get("controles_acceso_id"))
         self._set_combo_by_data(self.medidas_combo, data.get("medidas_seguridad_id"))
 
-        self.datos_sensibles_combo.setCurrentIndex(1 if data.get("datos_sensibles") else 0)
-        self.tipo_sensible_input.setText(data.get("tipo_sensible") or "")
+    def _try_set_combo_from_asset(self, combo):
+        # We need to know which key maps to which combo. 
+        # A simple map dict approach or just re-run _try_set_all_combos (fast enough)
+        self._try_set_all_combos()
+
+    def _check_finished(self):
+        self.pending_loads -= 1
+        if self.pending_loads <= 0:
+            self.loading_overlay.hide_loading()
+
+    def _on_load_error(self, error):
+        print(f"Error loading: {error}")
+        # Even on error we should decrement pending to avoid stuck spinner
+        self._check_finished()
 
     def resizeEvent(self, event):
         if hasattr(self, 'loading_overlay'):
@@ -238,8 +284,18 @@ class ActivoDialog(QDialog):
     def _set_combo_by_data(self, combo: QComboBox, value):
         if value is None:
             return
+        
+        # Try finding exact match first
+        index = combo.findData(value)
+        if index != -1:
+            combo.setCurrentIndex(index)
+            return
+
+        # Fallback: Compare as strings (handle int vs str mismatch)
+        value_str = str(value)
         for i in range(combo.count()):
-            if combo.itemData(i) == value:
+            data = combo.itemData(i)
+            if data is not None and str(data) == value_str:
                 combo.setCurrentIndex(i)
                 return
 
@@ -404,6 +460,8 @@ class ActivoDialog(QDialog):
                 self.api.post("/activos", payload)
                 msg = "Activo creado correctamente."
 
+            LoggerService().log_event(f"Activo {'actualizado' if self.is_edit else 'creado'} correctamente.")
+
             AlertDialog(
                 title="Éxito",
                 message=msg,
@@ -415,6 +473,7 @@ class ActivoDialog(QDialog):
             self.accept()
 
         except Exception as e:
+            LoggerService().log_error("Error al guardar activo", e)
             AlertDialog(
                 title="Error",
                 message=str(e),

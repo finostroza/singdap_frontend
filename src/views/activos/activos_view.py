@@ -10,6 +10,7 @@ from src.components.alert_dialog import AlertDialog
 from src.core.api_client import ApiClient
 from src.workers.api_worker import ApiWorker
 from src.components.loading_overlay import LoadingOverlay
+from src.services.logger_service import LoggerService
 from utils import icon
 
 
@@ -170,6 +171,7 @@ class ActivosView(QWidget):
         # ===============================
         self.loading_overlay = LoadingOverlay(self)
         self._load_filters_from_api()
+        LoggerService().log_event("Usuario accedió a Inventario de Activos")
         self._reload_all()
 
     def resizeEvent(self, event):
@@ -233,10 +235,14 @@ class ActivosView(QWidget):
         self._reload_all()
 
     def _on_search(self):
+        query = self.search_input.text()
+        if query:
+            LoggerService().log_event(f"Usuario buscó en activos: '{query}'")
         self.current_page = 1
         self._reload_all()
 
     def _on_filter_change(self):
+        LoggerService().log_event("Usuario aplicó filtros en grilla activos")
         self.current_page = 1
         self._reload_all()
 
@@ -285,6 +291,7 @@ class ActivosView(QWidget):
 
     def _on_reload_error(self, error):
         self.loading_overlay.hide_loading()
+        LoggerService().log_error("Error cargando grilla de activos", error)
         print(f"Error reloading: {error}")
 
     def _populate_activos_table(self, response):
@@ -358,8 +365,13 @@ class ActivosView(QWidget):
             parent=self
         )
         if confirm.exec():
-            self.api.delete(f"/activos/{activo_id}")
-            self._reload_all()
+            try:
+                self.api.delete(f"/activos/{activo_id}")
+                LoggerService().log_event(f"Usuario eliminó activo ID: {activo_id}")
+                self._reload_all()
+            except Exception as e:
+                LoggerService().log_error(f"Error eliminando activo ID: {activo_id}", e)
+                AlertDialog(title="Error", message=str(e), icon_path="src/resources/icons/alert_error.svg", confirm_text="Ok", parent=self).exec()
 
     # ======================================================
     # Pagination

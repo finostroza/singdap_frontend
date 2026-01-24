@@ -13,7 +13,9 @@ from PySide6.QtGui import QPixmap
 
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.main_window import MainWindow
+from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
+from src.services.logger_service import LoggerService
 
 
 
@@ -128,6 +130,21 @@ class LoginView(QWidget):
         self.vm.loading_changed.connect(self._on_loading)
 
         self.loading_overlay = LoadingOverlay(self)
+        self._check_debug_credentials()
+
+    def _check_debug_credentials(self):
+        try:
+            # Assuming file is in project root
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            creds_path = os.path.join(base_dir, "5s51r34.txt")
+            if os.path.exists(creds_path):
+                with open(creds_path, 'r') as f:
+                    lines = f.read().splitlines()
+                    if len(lines) >= 2:
+                        self.user_input.setText(lines[0].strip())
+                        self.password_input.setText(lines[1].strip())
+        except Exception:
+            pass
 
     def resizeEvent(self, event):
         self.loading_overlay.resize(event.size())
@@ -146,6 +163,7 @@ class LoginView(QWidget):
             return
 
         self.status_label.setText("")
+        LoggerService().log_event(f"Intento de inicio de sesión: {user}")
         self.vm.login(user, password)
 
     def _on_success(self, data: dict):
@@ -156,17 +174,26 @@ class LoginView(QWidget):
             return
 
         # Guardar token (provisorio, luego lo mejoramos)
+        # Guardar token (provisorio, luego lo mejoramos)
         self.vm.auth_service.api.set_token(access_token)
+        
+        # Init logger session (using input user as fallback if API doesn't return username, 
+        # though ideally use API user data if available. Using input for now as per plan)
+        user = self.user_input.text().strip()
+        LoggerService().init_session(user)
+        LoggerService().log_event("Inicio de sesión exitoso")
 
         # Abrir ventana principal
         self.main_window = MainWindow()
+        self.main_window.logout_signal.connect(self.show)
         self.main_window.show()
 
-        # Cerrar login
-        self.close()
+        # Cerrar login (ocultar para poder restaurar luego)
+        self.hide()
 
 
     def _on_error(self, error: str):
+        LoggerService().log_error("Fallo de inicio de sesión", error)
         self._set_error(error)
 
     def _on_loading(self, loading: bool):

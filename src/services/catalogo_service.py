@@ -12,17 +12,13 @@ class CatalogoService:
             if cached_data:
                 return cached_data
         
-        try:
-           # If not in cache or no key provided, fetch from API
-            data = self.api.get(endpoint)
+        # If not in cache or no key provided, fetch from API
+        data = self.api.get(endpoint)
+        
+        if cache_key and data:
+            self.cache.set(cache_key, data)
             
-            if cache_key and data:
-                self.cache.set(cache_key, data)
-                
-            return data
-        except Exception as e:
-            print(f"Error fetching catalog {endpoint}: {e}")
-            return []
+        return data
 
     def clear_cache(self):
         self.cache.clear()

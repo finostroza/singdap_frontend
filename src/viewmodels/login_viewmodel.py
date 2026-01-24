@@ -1,5 +1,6 @@
 from PySide6.QtCore import QObject, Signal
 from src.services.auth_service import AuthService
+from src.workers.api_worker import ApiWorker
 
 
 class LoginViewModel(QObject):
@@ -13,10 +14,19 @@ class LoginViewModel(QObject):
 
     def login(self, email: str, password: str):
         self.loading_changed.emit(True)
-        try:
-            result = self.auth_service.login(email, password)
-            self.login_success.emit(result)
-        except Exception as e:
-            self.login_error.emit(str(e))
-        finally:
-            self.loading_changed.emit(False)
+
+        def do_login():
+            return self.auth_service.login(email, password)
+
+        self.worker = ApiWorker(do_login)
+        self.worker.finished.connect(self._on_login_success)
+        self.worker.error.connect(self._on_login_error)
+        self.worker.start()
+
+    def _on_login_success(self, result):
+        self.login_success.emit(result)
+        self.loading_changed.emit(False)
+
+    def _on_login_error(self, error):
+        self.login_error.emit(error)
+        self.loading_changed.emit(False)

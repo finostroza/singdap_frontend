@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QStackedWidget,
 )
+from PySide6.QtCore import Signal
 
 from src.views.sidebar import Sidebar
 from src.views.activos.activos_view import ActivosView
@@ -13,6 +14,7 @@ from src.views.eipd.eipd_view import EipdView
 
 
 class MainWindow(QMainWindow):
+    logout_signal = Signal()
     def __init__(self):
         super().__init__()
 
@@ -85,6 +87,12 @@ class MainWindow(QMainWindow):
         # Estado inicial
         # ===============================
         self._navigate(0, 0)
+        
+        self.sidebar.logout_requested.connect(self._on_logout_requested)
+
+    def _on_logout_requested(self):
+        self.close()
+        self.logout_signal.emit()
 
     # ======================================================
     # Navigation handler
