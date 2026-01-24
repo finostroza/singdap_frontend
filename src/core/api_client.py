@@ -3,9 +3,21 @@ from src.config.settings import API_BASE_URL
 
 
 class ApiClient:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ApiClient, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
+        if self._initialized:
+            return
+            
         self.base_url = API_BASE_URL.rstrip('/')
         self.token = None
+        self._initialized = True
 
     def set_token(self, token: str):
         self.token = token

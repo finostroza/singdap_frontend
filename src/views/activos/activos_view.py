@@ -8,6 +8,8 @@ from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale
 from src.components.activo_dialog import ActivoDialog
 from src.components.alert_dialog import AlertDialog
 from src.core.api_client import ApiClient
+from src.workers.api_worker import ApiWorker
+from src.components.loading_overlay import LoadingOverlay
 from utils import icon
 
 
@@ -166,8 +168,13 @@ class ActivosView(QWidget):
         # ===============================
         # Initial load
         # ===============================
+        self.loading_overlay = LoadingOverlay(self)
         self._load_filters_from_api()
         self._reload_all()
+
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
     # ======================================================
     # Helpers
@@ -238,28 +245,51 @@ class ActivosView(QWidget):
     # ======================================================
 
     def _reload_all(self):
-        self._load_activos_from_api()
-        self._load_indicadores()
+        self.loading_overlay.show_loading()
+        
+        # Capture current state for the thread
+        page = self.current_page
+        size = self.page_size
+        filters = {
+            "search": self.search_input.text(),
+            "subsecretaria_id": self.subsecretaria_filter.currentData(),
+            "tipo_activo_id": self.tipo_filter.currentData(),
+            "estado_evaluacion_id": self.eipd_filter.currentData()
+        }
 
-    def _load_activos_from_api(self):
-        url = f"/activos/catalogos?page={self.current_page}&size={self.page_size}"
+        def fetch_task():
+            # Build URL
+            url = f"/activos/catalogos?page={page}&size={size}"
+            if filters["search"]: url += f"&search={filters['search']}"
+            if filters["subsecretaria_id"]: url += f"&subsecretaria_id={filters['subsecretaria_id']}"
+            if filters["tipo_activo_id"]: url += f"&tipo_activo_id={filters['tipo_activo_id']}"
+            if filters["estado_evaluacion_id"]: url += f"&estado_evaluacion_id={filters['estado_evaluacion_id']}"
 
-        if self.search_input.text():
-            url += f"&search={self.search_input.text()}"
+            activos_data = self.api.get(url)
+            indicadores_data = self.api.get("/activos/indicadores")
+            
+            return {
+                "activos": activos_data,
+                "indicadores": indicadores_data
+            }
 
-        if self.subsecretaria_filter.currentData():
-            url += f"&subsecretaria_id={self.subsecretaria_filter.currentData()}"
+        self.worker = ApiWorker(fetch_task, parent=self)
+        self.worker.finished.connect(self._on_reload_finished)
+        self.worker.error.connect(self._on_reload_error)
+        self.worker.start()
 
-        if self.tipo_filter.currentData():
-            url += f"&tipo_activo_id={self.tipo_filter.currentData()}"
+    def _on_reload_finished(self, data):
+        self._populate_activos_table(data["activos"])
+        self._populate_indicadores_ui(data["indicadores"])
+        self.loading_overlay.hide_loading()
 
-        if self.eipd_filter.currentData():
-            url += f"&estado_evaluacion_id={self.eipd_filter.currentData()}"
+    def _on_reload_error(self, error):
+        self.loading_overlay.hide_loading()
+        print(f"Error reloading: {error}")
 
-        response = self.api.get(url)
+    def _populate_activos_table(self, response):
         items = response["items"]
         self.total_pages = response["pages"]
-
         self.table.setRowCount(len(items))
 
         for row, item in enumerate(items):
@@ -268,7 +298,7 @@ class ActivosView(QWidget):
                 item["nombre_activo"],
                 item["tipo_activo"],
                 item["estado_activo"],
-                item["subsecretaria"],
+                item.get("subsecretaria") or "—",
                 item.get("division") or "—",
                 item.get("nivel_confidencialidad") or "—",
                 item.get("categoria") or "—",
@@ -281,12 +311,15 @@ class ActivosView(QWidget):
 
         self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
 
-    def _load_indicadores(self):
-        data = self.api.get("/activos/indicadores")
+    def _populate_indicadores_ui(self, data):
         self.total_card.value_label.setText(str(data["total_activos"]))
         self.sensibles_card.value_label.setText(str(data["confidencial"]))
         self.eipd_card.value_label.setText(str(data["eipd_pendiente"]))
         self.confid_card.value_label.setText(str(data["confidencial"]))
+
+    # Legacy methods replaced or unused
+    def _load_activos_from_api(self): pass
+    def _load_indicadores(self): pass
 
     # ======================================================
     # Actions
@@ -335,12 +368,12 @@ class ActivosView(QWidget):
     def _prev_page(self):
         if self.current_page > 1:
             self.current_page -= 1
-            self._load_activos_from_api()
+            self._reload_all()
 
     def _next_page(self):
         if self.current_page < self.total_pages:
             self.current_page += 1
-            self._load_activos_from_api()
+            self._reload_all()
 
     # ======================================================
     # Dialog

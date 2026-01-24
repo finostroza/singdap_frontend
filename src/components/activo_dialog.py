@@ -15,6 +15,9 @@ from PySide6.QtCore import Qt
 
 from src.core.api_client import ApiClient
 from src.components.alert_dialog import AlertDialog
+from src.workers.api_worker import ApiWorker
+from src.components.loading_overlay import LoadingOverlay
+from PySide6.QtCore import QTimer
 
 
 class ActivoDialog(QDialog):
@@ -94,14 +97,119 @@ class ActivoDialog(QDialog):
         # ===============================
         # Load combos + signals
         # ===============================
-        self._load_combos()
+        # ===============================
+        # Overlay
+        # ===============================
+        self.loading_overlay = LoadingOverlay(self)
 
-        self.subsecretaria_combo.currentIndexChanged.connect(
-            self._on_subsecretaria_changed
-        )
+        # Trigger async load
+        QTimer.singleShot(0, self._init_async_load)
 
-        if self.is_edit:
-            self._load_activo()
+    def _init_async_load(self):
+        self.loading_overlay.show_loading()
+
+        def fetch_data():
+            # Determine calls
+            endpoints = {
+                "tipo_activo": "/catalogos/tipo-activo",
+                "estado_activo": "/catalogos/estado-activo",
+                "categoria_activo": "/catalogos/categoria-activo",
+                "importancia": "/catalogos/importancia",
+                "subsecretarias": "/setup/subsecretarias",
+                "marco_habilitante": "/catalogos/marco-habilitante",
+                "criticidad": "/catalogos/criticidad",
+                "nivel_confidencialidad": "/catalogos/nivel-confidencialidad",
+                "controles_acceso": "/catalogos/controles-acceso",
+                "medidas_seguridad": "/catalogos/medidas-seguridad"
+            }
+            results = {}
+            # 1. Load catalogs
+            for key, url in endpoints.items():
+                results[key] = self.api.get(url)
+
+            # 2. If Edit, load asset + specific divisions
+            if self.is_edit:
+                asset = self.api.get(f"/activos/{self.activo_id}")
+                results["asset"] = asset
+                
+                # Load divisions for the asset's subsecretaria
+                sub_id = asset.get("subsecretaria_id")
+                if sub_id:
+                    results["divisiones"] = self.api.get(f"/setup/divisiones?subsecretaria_id={sub_id}")
+            
+            return results
+
+        self.worker = ApiWorker(fetch_data, parent=self)
+        self.worker.finished.connect(self._on_data_ready)
+        self.worker.error.connect(self._on_load_error)
+        self.worker.start()
+
+    def _on_load_error(self, error):
+        self.loading_overlay.hide_loading()
+        print(f"Error loading dialog data: {error}")
+        self.reject()
+
+    def _on_data_ready(self, data):
+        # Populate catalogs
+        self._fill_combo(self.tipo_activo_combo, data["tipo_activo"])
+        self._fill_combo(self.estado_activo_combo, data["estado_activo"])
+        self._fill_combo(self.categoria_combo, data["categoria_activo"])
+        self._fill_combo(self.importancia_combo, data["importancia"])
+        self._fill_combo(self.subsecretaria_combo, data["subsecretarias"])
+        self._fill_combo(self.marco_combo, data["marco_habilitante"])
+        self._fill_combo(self.criticidad_combo, data["criticidad"])
+        self._fill_combo(self.confidencialidad_combo, data["nivel_confidencialidad"])
+        self._fill_combo(self.controles_combo, data["controles_acceso"])
+        self._fill_combo(self.medidas_combo, data["medidas_seguridad"])
+
+        # Populate asset if edit
+        if self.is_edit and "asset" in data:
+            self._populate_asset_data(data["asset"], data.get("divisiones", []))
+
+        self.loading_overlay.hide_loading()
+
+    def _fill_combo(self, combo, items):
+        combo.clear()
+        for item in items:
+            combo.addItem(item["nombre"], item["id"])
+
+    def _populate_asset_data(self, data, divisions):
+        self.nombre_input.setText(data["nombre_activo"])
+        self.descripcion_input.setText(data.get("descripcion") or "")
+        self.responsable_input.setText(data.get("responsable") or "")
+        self.roles_input.setText(data.get("rol") or "")
+        self.url_input.setText(data.get("url_direccion") or "")
+        self.procesos_input.setText(data.get("procesos_vinculados") or "")
+        self.infra_input.setText(data.get("infraestructura_ti") or "")
+        self.convenio_input.setText(data.get("convenio_vinculado") or "")
+
+        self._set_combo_by_data(self.tipo_activo_combo, data.get("tipo_activo_id"))
+        self._set_combo_by_data(self.estado_activo_combo, data.get("estado_activo_id"))
+        self._set_combo_by_data(self.categoria_combo, data.get("categoria_id"))
+        self._set_combo_by_data(self.importancia_combo, data.get("importancia_id"))
+
+        # Subsecretaria
+        self._set_combo_by_data(self.subsecretaria_combo, data.get("subsecretaria_id"))
+        
+        # Divisions (pre-fetched)
+        self.division_combo.clear()
+        for div in divisions:
+            self.division_combo.addItem(div["nombre"], div["id"])
+        self._set_combo_by_data(self.division_combo, data.get("division_id"))
+
+        self._set_combo_by_data(self.marco_combo, data.get("marco_habilitante_id"))
+        self._set_combo_by_data(self.criticidad_combo, data.get("criticidad_id"))
+        self._set_combo_by_data(self.confidencialidad_combo, data.get("nivel_confidencialidad_id"))
+        self._set_combo_by_data(self.controles_combo, data.get("controles_acceso_id"))
+        self._set_combo_by_data(self.medidas_combo, data.get("medidas_seguridad_id"))
+
+        self.datos_sensibles_combo.setCurrentIndex(1 if data.get("datos_sensibles") else 0)
+        self.tipo_sensible_input.setText(data.get("tipo_sensible") or "")
+
+    def resizeEvent(self, event):
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
     # ======================================================
     # Helpers
@@ -237,20 +345,8 @@ class ActivoDialog(QDialog):
         for item in self.api.get(endpoint):
             combo.addItem(item["nombre"], item["id"])
 
-    def _load_combos(self):
-        self._load_combo(self.tipo_activo_combo, "/catalogos/tipo-activo")
-        self._load_combo(self.estado_activo_combo, "/catalogos/estado-activo")
-        self._load_combo(self.categoria_combo, "/catalogos/categoria-activo")
-        self._load_combo(self.importancia_combo, "/catalogos/importancia")
-
-        self._load_combo(self.subsecretaria_combo, "/setup/subsecretarias")
-        self.division_combo.clear()  # 🔑 ahora depende de subsecretaría
-        self._load_combo(self.marco_combo, "/catalogos/marco-habilitante")
-
-        self._load_combo(self.criticidad_combo, "/catalogos/criticidad")
-        self._load_combo(self.confidencialidad_combo, "/catalogos/nivel-confidencialidad")
-        self._load_combo(self.controles_combo, "/catalogos/controles-acceso")
-        self._load_combo(self.medidas_combo, "/catalogos/medidas-seguridad")
+    # _load_combos (removed, replaced by async)
+    # _load_activo (removed, replaced by async)
 
     def _on_subsecretaria_changed(self):
         subsecretaria_id = self.subsecretaria_combo.currentData()
@@ -266,37 +362,7 @@ class ActivoDialog(QDialog):
         for div in divisions:
             self.division_combo.addItem(div["nombre"], div["id"])
 
-    def _load_activo(self):
-        data = self.api.get(f"/activos/{self.activo_id}")
 
-        self.nombre_input.setText(data["nombre_activo"])
-        self.descripcion_input.setText(data.get("descripcion") or "")
-        self.responsable_input.setText(data.get("responsable") or "")
-        self.roles_input.setText(data.get("rol") or "")
-
-        self.url_input.setText(data.get("url_direccion") or "")
-        self.procesos_input.setText(data.get("procesos_vinculados") or "")
-        self.infra_input.setText(data.get("infraestructura_ti") or "")
-        self.convenio_input.setText(data.get("convenio_vinculado") or "")
-
-        self._set_combo_by_data(self.tipo_activo_combo, data.get("tipo_activo_id"))
-        self._set_combo_by_data(self.estado_activo_combo, data.get("estado_activo_id"))
-        self._set_combo_by_data(self.categoria_combo, data.get("categoria_id"))
-        self._set_combo_by_data(self.importancia_combo, data.get("importancia_id"))
-
-        # 🔑 Orden correcto
-        self._set_combo_by_data(self.subsecretaria_combo, data.get("subsecretaria_id"))
-        self._on_subsecretaria_changed()
-        self._set_combo_by_data(self.division_combo, data.get("division_id"))
-
-        self._set_combo_by_data(self.marco_combo, data.get("marco_habilitante_id"))
-        self._set_combo_by_data(self.criticidad_combo, data.get("criticidad_id"))
-        self._set_combo_by_data(self.confidencialidad_combo, data.get("nivel_confidencialidad_id"))
-        self._set_combo_by_data(self.controles_combo, data.get("controles_acceso_id"))
-        self._set_combo_by_data(self.medidas_combo, data.get("medidas_seguridad_id"))
-
-        self.datos_sensibles_combo.setCurrentIndex(1 if data.get("datos_sensibles") else 0)
-        self.tipo_sensible_input.setText(data.get("tipo_sensible") or "")
 
     # ======================================================
     # Submit
