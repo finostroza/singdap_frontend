@@ -8,11 +8,12 @@ from PySide6.QtWidgets import (
     QLabel,
     QFrame
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.main_window import MainWindow
+from src.components.loading_overlay import LoadingOverlay
 
 
 
@@ -126,6 +127,12 @@ class LoginView(QWidget):
         self.vm.login_error.connect(self._on_error)
         self.vm.loading_changed.connect(self._on_loading)
 
+        self.loading_overlay = LoadingOverlay(self)
+
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
+
     # ===============================
     # Handlers
     # ===============================
@@ -139,7 +146,12 @@ class LoginView(QWidget):
             return
 
         self.status_label.setText("")
-        self.vm.login(user, password)
+        
+        # Mostrar loading inmediatamente
+        self.loading_overlay.show_loading()
+        
+        # Diferir login para permitir renderizado del overlay
+        QTimer.singleShot(100, lambda: self.vm.login(user, password))
 
     def _on_success(self, data: dict):
         access_token = data.get("access_token")
@@ -168,9 +180,9 @@ class LoginView(QWidget):
         self.password_input.setEnabled(not loading)
 
         if loading:
-            self.status_label.setObjectName("info")
-            self.status_label.setText("Ingresando...")
-            self.status_label.style().polish(self.status_label)
+            self.loading_overlay.show_loading()
+        else:
+            self.loading_overlay.hide_loading()
 
     # ===============================
     # Helpers

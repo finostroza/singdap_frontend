@@ -11,11 +11,17 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 from PySide6.QtCore import Qt
+from src.components.loading_overlay import LoadingOverlay
 
 
 class EipdView(QWidget):
     def __init__(self):
         super().__init__()
+        self.loading_overlay = LoadingOverlay(self)
+
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
         self.setObjectName("eipdView")
 

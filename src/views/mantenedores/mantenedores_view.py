@@ -7,11 +7,17 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
 from src.core.api_client import ApiClient
+from src.components.loading_overlay import LoadingOverlay
 
 
 class MantenedoresView(QWidget):
     def __init__(self):
         super().__init__()
+        self.loading_overlay = LoadingOverlay(self)
+
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
         self.api = ApiClient()
 

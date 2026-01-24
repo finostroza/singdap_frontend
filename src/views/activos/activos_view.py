@@ -9,6 +9,7 @@ from src.components.activo_dialog import ActivoDialog
 from src.components.alert_dialog import AlertDialog
 from src.core.api_client import ApiClient
 from utils import icon
+from src.components.loading_overlay import LoadingOverlay
 
 
 class ActivosView(QWidget):
@@ -166,8 +167,14 @@ class ActivosView(QWidget):
         # ===============================
         # Initial load
         # ===============================
+        self.loading_overlay = LoadingOverlay(self)  # Initialize Overlay
+
         self._load_filters_from_api()
         self._reload_all()
+
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
     # ======================================================
     # Helpers
@@ -238,8 +245,16 @@ class ActivosView(QWidget):
     # ======================================================
 
     def _reload_all(self):
-        self._load_activos_from_api()
-        self._load_indicadores()
+        self.loading_overlay.show_loading()
+        # Pequeño delay para permitir que la UI renderice el overlay antes de bloquear con requests
+        QTimer.singleShot(100, self._execute_reload)
+
+    def _execute_reload(self):
+        try:
+            self._load_activos_from_api()
+            self._load_indicadores()
+        finally:
+            self.loading_overlay.hide_loading()
 
     def _load_activos_from_api(self):
         url = f"/activos/catalogos?page={self.current_page}&size={self.page_size}"
