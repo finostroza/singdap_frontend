@@ -137,6 +137,14 @@ class GenericGridView(QWidget):
                 combo = QComboBox()
                 # Store reference
                 self.filters_ui[f["id"]] = combo
+                
+                # Apply width if configured
+                if f.get("ancho"):
+                    combo.setFixedWidth(f["ancho"])
+                else:
+                    # Default min width to avoid extreme truncation
+                    combo.setMinimumWidth(150)
+                    
                 combo.currentIndexChanged.connect(self._on_filter_change)
                 filters_layout.addWidget(combo)
                 

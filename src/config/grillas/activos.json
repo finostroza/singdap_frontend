@@ -103,19 +103,21 @@
         {
             "id": "subsecretaria",
             "tipo": "combobox",
-            "etiqueta_defecto": "Todas las Subsecretarías",
+            "etiqueta_defecto": "Subsecretarías: Todas",
             "endpoint": "/setup/subsecretarias",
             "cache_key": "catalogo_subsecretarias",
             "param_api": "subsecretaria_id",
+            "ancho": 220,
             "orden": 1
         },
         {
             "id": "tipo",
             "tipo": "combobox",
-            "etiqueta_defecto": "Todos los tipos",
+            "etiqueta_defecto": "Tipos: Todos",
             "endpoint": "/catalogos/tipo-activo",
             "cache_key": "catalogo_tipos",
             "param_api": "tipo_activo_id",
+            "ancho": 160,
             "orden": 2
         },
         {
@@ -125,6 +127,7 @@
             "endpoint": "/catalogos/estado-evaluacion",
             "cache_key": "catalogo_estado_evaluacion",
             "param_api": "estado_evaluacion_id",
+            "ancho": 180,
             "orden": 3
         }
     ],
