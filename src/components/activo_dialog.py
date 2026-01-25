@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QComboBox,
     QScrollArea,
+    QFrame,
 )
 from PySide6.QtCore import Qt
 
@@ -44,80 +45,123 @@ class ActivoDialog(QDialog):
         self.setObjectName("activoDialog")
         self.setWindowTitle("Editar Activo" if self.is_edit else "Nuevo Activo")
         self.setModal(True)
-        self.resize(920, 620)
+        self.resize(1100, 750)
 
         # ===============================
-        # Layout principal
+        # Layout principal (Horizontal: Sidebar | Content)
         # ===============================
-        main_layout = QVBoxLayout(self)
+        main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # ===============================
-        # HEADER
-        # ===============================
-        header = QWidget()
-        header.setObjectName("dialogHeader")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(24, 16, 24, 16)
+        # 1. Prepare Steps Data
+        self.steps_config = [
+            {"title": "Identificación general", "desc": "Antecedentes principales para individualizar el activo.", "func": self._tab_identificacion},
+            {"title": "Contexto institucional", "desc": "Unidad y marco que da origen al activo.", "func": self._tab_contexto},
+            {"title": "Responsables", "desc": "Personas y roles encargados del activo.", "func": self._tab_responsables},
+            {"title": "Seguridad y privacidad", "desc": "Detalle de clasificación y medidas de seguridad.", "func": self._tab_clasificacion},
+        ]
+        
+        # 2. Sidebar
+        from src.components.wizard_sidebar import WizardSidebar
+        self.sidebar = WizardSidebar(self.steps_config)
+        self.sidebar.step_changed.connect(self._on_step_changed)
+        
+        main_layout.addWidget(self.sidebar)
 
-        title = QLabel("Editar Activo" if self.is_edit else "Nuevo Activo")
-        title.setObjectName("dialogTitle")
-        title.setStyleSheet("color: white;")
-        header_layout.addWidget(title)
-        header_layout.addStretch()
+        # 3. Content Area (Stack)
+        from PySide6.QtWidgets import QStackedWidget
+        self.stack = QStackedWidget()
+        
+        # Build pages
+        for i, step in enumerate(self.steps_config):
+            # Create content widget from existing function
+            content_widget = step["func"]()
+            
+            # Wrap in wizard page structure
+            page = self._wrap_step_content(
+                content_widget, 
+                step["title"], 
+                step["desc"], 
+                i, 
+                len(self.steps_config)
+            )
+            self.stack.addWidget(page)
 
-        main_layout.addWidget(header)
-
-        # ===============================
-        # Contenido
-        # ===============================
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(24, 20, 24, 16)
-        content_layout.setSpacing(16)
-
-        self.tabs = QTabWidget()
-        self.tabs.setObjectName("dialogTabs")
-
-        self.tabs.addTab(self._wrap_scroll(self._tab_identificacion()), "Identificación")
-        self.tabs.addTab(self._wrap_scroll(self._tab_contexto()), "Contexto institucional")
-        self.tabs.addTab(self._wrap_scroll(self._tab_responsables()), "Responsables")
-        self.tabs.addTab(self._wrap_scroll(self._tab_clasificacion()), "Seguridad y privacidad")
-
-        content_layout.addWidget(self.tabs)
-
-        # ===============================
-        # Footer
-        # ===============================
-        footer = QHBoxLayout()
-        footer.addStretch()
-
-        cancel_btn = QPushButton("Cancelar")
-        cancel_btn.setObjectName("secondaryButton")
-        cancel_btn.clicked.connect(self.reject)
-
-        save_btn = QPushButton("Guardar")
-        save_btn.setObjectName("primaryButton")
-        save_btn.clicked.connect(self._submit)
-
-        footer.addWidget(cancel_btn)
-        footer.addWidget(save_btn)
-
-        content_layout.addLayout(footer)
-        main_layout.addWidget(content)
+        main_layout.addWidget(self.stack)
 
         # ===============================
-        # Load combos + signals
-        # ===============================
-        # ===============================
-        # Overlay
+        # Overlay & Initial Load
         # ===============================
         self.loading_overlay = LoadingOverlay(self)
 
         # Trigger async load
         QTimer.singleShot(0, self._init_async_load)
         LoggerService().log_event(f"Abriendo formulario activo. Modo: {'Editar' if self.is_edit else 'Nuevo'}")
+        
+    def _on_step_changed(self, index):
+        self.stack.setCurrentIndex(index)
+
+    def _wrap_step_content(self, content_widget, title_text, desc_text, index, total):
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(20)
+        
+        # Header
+        header = QVBoxLayout()
+        t = QLabel(f"{index + 1}. {title_text}")
+        t.setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;")
+        d = QLabel(desc_text)
+        d.setStyleSheet("font-size: 14px; color: #64748b;")
+        d.setWordWrap(True)
+        header.addWidget(t)
+        header.addWidget(d)
+        layout.addLayout(header)
+        
+        # Divider
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: #e2e8f0;")
+        line.setFixedHeight(1)
+        layout.addWidget(line)
+        
+        # Content (Scrollable if needed, but inner forms usually fit or have their own logic)
+        # Using scroll wrapper here as well
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(content_widget)
+        layout.addWidget(scroll, 1) # Stretch
+        
+        # Footer (Nav Buttons)
+        footer = QHBoxLayout()
+        
+        # Prev Button
+        if index > 0:
+            prev_btn = QPushButton("Anterior")
+            prev_btn.setObjectName("secondaryButton")
+            prev_btn.clicked.connect(self.sidebar.prev_step)
+            footer.addWidget(prev_btn)
+        
+        footer.addStretch()
+        
+        # Next / Save Button
+        if index < total - 1:
+            next_btn = QPushButton("Siguiente")
+            next_btn.setObjectName("primaryButton")
+            next_btn.clicked.connect(self.sidebar.next_step)
+            footer.addWidget(next_btn)
+        else:
+            # Last step -> Save
+            save_btn = QPushButton("Guardar")
+            save_btn.setObjectName("primaryButton")
+            save_btn.clicked.connect(self._submit)
+            footer.addWidget(save_btn)
+            
+        layout.addLayout(footer)
+        return container
 
     def _init_async_load(self):
         self.loading_overlay.show_loading()
