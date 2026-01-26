@@ -1,0 +1,177 @@
+{
+    "endpoint": "/activos",
+    "id_field": "id",
+    "title_new": "Nuevo Activo",
+    "title_edit": "Editar Activo",
+    "width": 1100,
+    "height": 750,
+    "sections": [
+        {
+            "title": "Identificación general",
+            "description": "Antecedentes principales para individualizar el activo.",
+            "fields": [
+                {
+                    "key": "nombre_activo",
+                    "label": "Nombre",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "descripcion",
+                    "label": "Descripción",
+                    "type": "textarea",
+                    "height": 100
+                },
+                {
+                    "key": "tipo_activo_id",
+                    "label": "Tipo de activo",
+                    "type": "combo",
+                    "source": "/catalogos/tipo-activo",
+                    "cache_key": "catalogo_tipos"
+                },
+                {
+                    "key": "estado_activo_id",
+                    "label": "Estado",
+                    "type": "combo",
+                    "source": "/catalogos/estado-activo",
+                    "cache_key": "catalogo_estados"
+                },
+                {
+                    "key": "url_direccion",
+                    "label": "URL / Dirección",
+                    "type": "text"
+                },
+                {
+                    "key": "procesos_vinculados",
+                    "label": "Procesos vinculados",
+                    "type": "text"
+                },
+                {
+                    "key": "infraestructura_ti",
+                    "label": "Infraestructura TI",
+                    "type": "text"
+                },
+                {
+                    "key": "convenio_vinculado",
+                    "label": "Convenio vinculado",
+                    "type": "text"
+                },
+                {
+                    "key": "categoria_id",
+                    "label": "Categoría",
+                    "type": "combo",
+                    "source": "/catalogos/categoria-activo",
+                    "cache_key": "catalogo_categorias"
+                },
+                {
+                    "key": "importancia_id",
+                    "label": "Importancia",
+                    "type": "combo",
+                    "source": "/catalogos/importancia",
+                    "cache_key": "catalogo_importancia"
+                }
+            ]
+        },
+        {
+            "title": "Contexto institucional",
+            "description": "Unidad y marco que da origen al activo.",
+            "fields": [
+                {
+                    "key": "subsecretaria_id",
+                    "label": "Subsecretaría",
+                    "type": "combo",
+                    "source": "/setup/subsecretarias",
+                    "cache_key": "catalogo_subsecretarias",
+                    "triggers_reload": [
+                        "division_id"
+                    ]
+                },
+                {
+                    "key": "division_id",
+                    "label": "División / Depto",
+                    "type": "combo",
+                    "source": null,
+                    "depends_on": "subsecretaria_id",
+                    "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}"
+                },
+                {
+                    "key": "marco_habilitante_id",
+                    "label": "Marco habilitante",
+                    "type": "combo",
+                    "source": "/catalogos/marco-habilitante",
+                    "cache_key": "catalogo_marco"
+                }
+            ]
+        },
+        {
+            "title": "Responsables",
+            "description": "Personas y roles encargados del activo.",
+            "fields": [
+                {
+                    "key": "responsable",
+                    "label": "Responsable tratamiento",
+                    "type": "text"
+                },
+                {
+                    "key": "rol",
+                    "label": "Rol",
+                    "type": "text"
+                }
+            ]
+        },
+        {
+            "title": "Seguridad y privacidad",
+            "description": "Detalle de clasificación y medidas de seguridad.",
+            "fields": [
+                {
+                    "key": "datos_sensibles",
+                    "label": "¿Datos sensibles?",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": false,
+                            "nombre": "No"
+                        },
+                        {
+                            "id": true,
+                            "nombre": "Sí"
+                        }
+                    ]
+                },
+                {
+                    "key": "tipo_sensible",
+                    "label": "Tipo sensible",
+                    "type": "text"
+                },
+                {
+                    "key": "criticidad_id",
+                    "label": "Criticidad",
+                    "type": "combo",
+                    "source": "/catalogos/criticidad",
+                    "cache_key": "catalogo_criticidad"
+                },
+                {
+                    "key": "nivel_confidencialidad_id",
+                    "label": "Confidencialidad",
+                    "type": "combo",
+                    "source": "/catalogos/nivel-confidencialidad",
+                    "cache_key": "catalogo_confidencialidad"
+                },
+                {
+                    "key": "controles_acceso_id",
+                    "label": "Controles de acceso",
+                    "type": "combo",
+                    "source": "/catalogos/controles-acceso",
+                    "cache_key": "catalogo_controles"
+                },
+                {
+                    "key": "medidas_seguridad_id",
+                    "label": "Medidas de seguridad",
+                    "type": "combo",
+                    "source": "/catalogos/medidas-seguridad",
+                    "cache_key": "catalogo_medidas_seguridad"
+                }
+            ]
+        }
+    ]
+}
