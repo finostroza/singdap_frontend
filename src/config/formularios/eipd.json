@@ -1,0 +1,724 @@
+{
+    "endpoint": "/eipd",
+    "id_field": "id",
+    "title_new": "Nueva Evaluación de Impacto en Protección de Datos (EIPD)",
+    "title_edit": "Editar Evaluación de Impacto en Protección de Datos (EIPD)",
+    "width": 1250,
+    "height": 800,
+    "sections": [
+        {
+            "title": "1. Nivel 1 – Identificación del Tratamiento (RAT)",
+            "description": "Define el tratamiento y justifica la aplicación de una EIPD",
+            "fields": [
+                {
+                    "key": "identificacion_rat",
+                    "label": "Identificación del RAT",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "marco_normativo",
+                    "label": "Marco normativo aplicable",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "descripcion_general",
+                    "label": "Descripción general del tratamiento",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "resultados_esperados",
+                    "label": "Resultados esperados del tratamiento",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "finalidades",
+                    "label": "Finalidad(es) del tratamiento",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "justificacion",
+                    "label": "Justificación aplicación EIPD",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "2. Nivel 2 – Caracterización del Tratamiento",
+            "description": "Detalle operativo y alcance del tratamiento de datos personales",
+            "fields": [
+                {
+                    "key": "categorias_datos",
+                    "label": "Categorías de datos personales tratados",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "titulares",
+                    "label": "Titulares de los datos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "origen_recoleccion",
+                    "label": "Origen y recolección de los datos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "unidades_acceso",
+                    "label": "Unidades o perfiles con acceso",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "diagrama_flujo",
+                    "label": "Diagrama de flujo de datos personales",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "alcance_exclusiones",
+                    "label": "Alcance y exclusiones del análisis",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "conclusiones_rat",
+                    "label": "Conclusiones del RAT",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "3. Nivel 3 – Licitud y Lealtad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "licitud_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "licitud_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "licitud_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "licitud_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "4. Nivel 3 – Finalidad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "finalidad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "finalidad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "finalidad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "finalidad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "5. Nivel 3 – Proporcionlidad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "proporcionalidad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "proporcionalidad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "proporcionalidad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "proporcionalidad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "6. Nivel 3 – Calidad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "calidad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "calidad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "calidad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "calidad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "7. Nivel 3 – Responsabilidad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "responsabilidad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "responsabilidad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "responsabilidad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "responsabilidad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "8. Nivel 3 – Seguridad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "seguridad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "seguridad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "seguridad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "seguridad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "9. Nivel 3 – Transparencia e Información",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "transparencia_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "transparencia_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "transparencia_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "transparencia_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "10. Nivel 3 – Confidencialidad",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "confidencialidad_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "confidencialidad_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "confidencialidad_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "confidencialidad_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "11. Nivel 3 – Coordinación",
+            "description": "Evaluación de cumplimiento, madurez y riesgo",
+            "fields": [
+                {
+                    "key": "coordinacion_criterios",
+                    "label": "Criterios de evaluación",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "coordinacion_resumen",
+                    "label": "Resumen del ámbito",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "coordinacion_nivel",
+                    "label": "Nivel de desarrollo",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "coordinacion_riesgos",
+                    "label": "Evaluación de riesgos",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": "alto",
+                            "nombre": "Alto"
+                        },
+                        {
+                            "id": "medio",
+                            "nombre": "Medio"
+                        },
+                        {
+                            "id": "bajo",
+                            "nombre": "Bajo"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "12. Riesgos",
+            "description": "Riesgos que afectan múltiples ámbitos (probabilidad x Impacto)",
+            "fields": [
+                {
+                    "key": "matriz_riesgos",
+                    "label": "Matriz de Riesgos Transversales",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "13. Mitigación",
+            "description": "Medidas, reponsables, plazos y seguimiento",
+            "fields": [
+                {
+                    "key": "plan_mitigacion",
+                    "label": "Plan de Mitigación y Seguimiento",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "14. Administración Interna",
+            "description": "Responsable",
+            "fields": [
+                {
+                    "key": "responsable_eipd",
+                    "label": "Responsable EIPD",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "fecha_revision",
+                    "label": "Fecha de revisión",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "observaciones_internas",
+                    "label": "Observaciones internas",
+                    "description": "Descripción ejemplo del tratamiento",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        }
+    ]
+}

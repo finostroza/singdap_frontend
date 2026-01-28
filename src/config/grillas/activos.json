@@ -119,16 +119,6 @@
             "param_api": "tipo_activo_id",
             "ancho": 160,
             "orden": 2
-        },
-        {
-            "id": "eipd",
-            "tipo": "combobox",
-            "etiqueta_defecto": "Estado EIPD: Todos",
-            "endpoint": "/catalogos/estado-evaluacion",
-            "cache_key": "catalogo_estado_evaluacion",
-            "param_api": "estado_evaluacion_id",
-            "ancho": 180,
-            "orden": 3
         }
     ],
     "acciones": [

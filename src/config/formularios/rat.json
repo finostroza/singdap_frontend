@@ -1,0 +1,376 @@
+{
+    "endpoint": "/rat",
+    "id_field": "id",
+    "title_new": "Nuevo RAT – Registro de Actividades de Tratamiento",
+    "title_edit": "Editar RAT – Registro de Actividades de Tratamiento",
+    "width": 1250,
+    "height": 800,
+    "sections": [
+        {
+            "title": "1. Gobierno de Datos",
+            "description": "Metadatos del documento RAT (uso interno / trazabilidad institucional).",
+            "fields": [
+                {
+                    "key": "observacion",
+                    "label": "Observación",
+                    "description": "Según tabla: «Dejar luego de portada» (metadata).",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "equipo_entrevistados",
+                    "label": "Equipo de entrevistados",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "equipo_validacion",
+                    "label": "Equipo de validación de contenidos",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "aprobacion_final",
+                    "label": "Revisión y aprobación final",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "versionado",
+                    "label": "Versionado",
+                    "description": "El sistema debe registrar y mantener versiones históricas y en proceso del RAT.",
+                    "type": "text",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "title": "2. Identificación general del tratamiento",
+            "description": "Antecedentes principales para individualizar el tratamiento y sus responsables.",
+            "fields": [
+                {
+                    "key": "nombre_tratamiento",
+                    "label": "Nombre del tratamiento",
+                    "description": "Denominación oficial y única del tratamiento de datos personales.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "sistema_asociado",
+                    "label": "Sistema, proceso o proyecto asociado",
+                    "description": "Sistema, proceso institucional o proyecto que da origen al tratamiento.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "unidades_responsables",
+                    "label": "Unidad(es) responsable(s) del tratamiento",
+                    "description": "Seleccione 1 o más unidades responsables.",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/catalogos/unidades",
+                    "cache_key": "catalogo_unidades",
+                    "required": true
+                },
+                {
+                    "key": "encargados_tratamiento",
+                    "label": "Encargado(s) del tratamiento",
+                    "description": "Indique 1 o más encargados (personas/unidades/proveedores) según corresponda.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "contacto_responsable",
+                    "label": "Datos de contacto del responsable",
+                    "description": "Datos de contacto institucionales (correos, unidad, mesa de ayuda, etc.).",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "3. Descripción del tratamiento",
+            "description": "Detalle del tratamiento, finalidad y resultados esperados.",
+            "fields": [
+                {
+                    "key": "descripcion_tratamiento",
+                    "label": "Descripción detallada del tratamiento",
+                    "description": "Explique el flujo general, etapas y operaciones principales.",
+                    "type": "textarea",
+                    "height": 100,
+                    "required": true
+                },
+                {
+                    "key": "finalidad_tratamiento",
+                    "label": "Finalidad(es) del tratamiento",
+                    "description": "Finalidad pública específica que justifica el tratamiento.",
+                    "type": "textarea",
+                    "required": true
+                },
+                {
+                    "key": "resultados_esperados",
+                    "label": "Resultados esperados",
+                    "description": "Productos, resultados o salidas del tratamiento.",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "4. Base normativa habilitante",
+            "description": "Normativa, actos administrativos y tipo de habilitación legal.",
+            "fields": [
+                {
+                    "key": "normativa_aplicable",
+                    "label": "Normativa aplicable",
+                    "description": "Detalle leyes, decretos, resoluciones, convenios u otros actos habilitantes.",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "5. Titulares de los datos",
+            "description": "Identificación de titulares y grupos vulnerables.",
+            "fields": [
+                {
+                    "key": "categorias_titulares",
+                    "label": "Categorías de titulares",
+                    "description": "Lista por definir (mockup incluye opciones típicas).",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/catalogos/categorias-titulares",
+                    "cache_key": "catalogo_titulares",
+                    "required": true
+                },
+                {
+                    "key": "poblaciones_vulnerables",
+                    "label": "¿Existen poblaciones especiales o vulnerables?",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": false,
+                            "nombre": "No"
+                        },
+                        {
+                            "id": true,
+                            "nombre": "Sí"
+                        }
+                    ],
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "6. Categoría de datos personales tratados",
+            "description": "Clasificación de datos, sensibilidad, volumen y criticidad.",
+            "fields": [
+                {
+                    "key": "categorias_datos_personales",
+                    "label": "Categorías de datos personales",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/catalogos/categorias-datos",
+                    "cache_key": "catalogo_datos_personales",
+                    "required": true
+                },
+                {
+                    "key": "datos_sensibles",
+                    "label": "¿Se tratan datos sensibles?",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": false,
+                            "nombre": "No"
+                        },
+                        {
+                            "id": true,
+                            "nombre": "Sí"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "volumen_datos",
+                    "label": "Volumen aproximado de datos",
+                    "description": "Puede ser rango, estimación o cálculo (cuando aplique).",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "nivel_criticidad_id",
+                    "label": "Nivel de criticidad",
+                    "type": "combo",
+                    "source": "/catalogos/criticidad",
+                    "cache_key": "catalogo_criticidad",
+                    "required": true
+                },
+                {
+                    "key": "nivel_confidencialidad_id",
+                    "label": "Nivel de confidencialidad",
+                    "type": "combo",
+                    "source": "/catalogos/nivel-confidencialidad",
+                    "cache_key": "catalogo_confidencialidad",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "7. Origen y recolección de los datos",
+            "description": "Fuentes, medios y aplicación de minimización.",
+            "fields": [
+                {
+                    "key": "fuente_datos",
+                    "label": "Fuente de los datos",
+                    "description": "Orígenes principales (bases internas/externas, convenios, ciudadanía, etc.).",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "medio_recoleccion",
+                    "label": "Medio de recolección",
+                    "description": "Forma de captura (RIS Web, SFTP, WS, formularios, cargas masivas, etc.).",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "8. Ciclo de vida de los datos personales",
+            "description": "Recolección, uso, almacenamiento, conservación, transferencia y eliminación.",
+            "fields": [
+                {
+                    "key": "ciclo_recoleccion",
+                    "label": "Recolección (forma y momento)",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "ciclo_uso",
+                    "label": "Uso y tratamiento (operaciones realizadas)",
+                    "description": "Registro, consulta, cruce, análisis, seudonimización, automatizaciones, etc.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "ciclo_almacenamiento",
+                    "label": "Almacenamiento y conservación",
+                    "description": "Repositorios y sistemas usados (NAS, BD, servicios, nubes, etc.), más controles relevantes.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "ciclo_transferencia",
+                    "label": "Comunicación o transferencia",
+                    "description": "Indique si se comparten datos; cómo; con qué resguardos.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "ciclo_destinatarios",
+                    "label": "Destinatarios y fundamento legal",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "ciclo_eliminacion",
+                    "label": "Eliminación o disposición final",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "9. Flujos de información",
+            "description": "Descripción del flujo y sistemas involucrados.",
+            "fields": [
+                {
+                    "key": "descripcion_flujos",
+                    "label": "Descripción de flujos",
+                    "description": "Describa el flujo de datos personales (recolección → procesamiento → disposición).",
+                    "type": "textarea",
+                    "required": true
+                },
+                {
+                    "key": "diagrama_flujo",
+                    "label": "Adjuntar diagrama del flujo (opcional)",
+                    "description": "Mockup: el sistema almacena metadatos del archivo.",
+                    "type": "text",
+                    "required": false
+                },
+                {
+                    "key": "sistemas_involucrados",
+                    "label": "Sistemas y plataformas involucradas",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "10. Documentación revisada",
+            "description": "Documentos de respaldo utilizados para elaborar el RAT.",
+            "fields": [
+                {
+                    "key": "documentacion_revisada",
+                    "label": "Documentación revisada",
+                    "type": "textarea",
+                    "required": true
+                },
+                {
+                    "key": "adjuntos_documentacion",
+                    "label": "Adjuntar archivos (opcional)",
+                    "type": "text",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "title": "11. Identificación inicial de riesgos",
+            "description": "Registro preliminar de riesgos potenciales del tratamiento.",
+            "fields": [
+                {
+                    "key": "riesgos_potenciales",
+                    "label": "Riesgos potenciales",
+                    "description": "Identifique riesgos (accesos, trazabilidad, reidentificación, minimización, finalidades, etc.).",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "12. Conclusión y EIPD",
+            "description": "Síntesis final y decisión sobre la aplicación de EIPD.",
+            "fields": [
+                {
+                    "key": "conclusion",
+                    "label": "Conclusión",
+                    "type": "textarea",
+                    "required": true
+                },
+                {
+                    "key": "corresponde_eipd",
+                    "label": "¿Corresponde aplicar una Evaluación de Impacto en Protección de Datos Personales (EIPD)?",
+                    "type": "combo_static",
+                    "options": [
+                        {
+                            "id": true,
+                            "nombre": "Sí, corresponde la aplicación de una EIPD"
+                        },
+                        {
+                            "id": false,
+                            "nombre": "No corresponde"
+                        }
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "justificacion_eipd",
+                    "label": "Justificación",
+                    "description": "Fundamente técnica y normativamente la decisión.",
+                    "type": "textarea",
+                    "required": true
+                }
+            ]
+        }
+    ]
+}

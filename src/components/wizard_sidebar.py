@@ -41,7 +41,7 @@ class WizardStepWidget(QFrame):
         row1 = QHBoxLayout()
         row1.setSpacing(4) # Reduced spacing to save horizontal pixels
         
-        self.title_lbl = QLabel(f"{index + 1}. {title}")
+        self.title_lbl = QLabel(title)
         self.title_lbl.setObjectName("stepTitle")
         self.title_lbl.setWordWrap(True)
         # Reduced font-size to 12px to prevent wrapping when bold
@@ -80,6 +80,9 @@ class WizardStepWidget(QFrame):
     def mousePressEvent(self, event):
         self.clicked.emit(self.index)
         super().mousePressEvent(event)
+
+    def update_required_count(self, filled, total):
+        self.req_lbl.setText(f"{filled}/{total} requeridos")
 
 
 class WizardSidebar(QWidget):
