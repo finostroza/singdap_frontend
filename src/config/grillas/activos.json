@@ -1,6 +1,7 @@
 {
     "id": "activos",
     "titulo": "Inventario de Activos de Datos",
+    "form_config": "src/config/formularios/activos.json",
     "endpoints": {
         "listado": "/activos/catalogos",
         "indicadores": "/activos/indicadores",
@@ -143,11 +144,18 @@
                 "boton_cancelar": "Cancelar"
             },
             "orden": 2
+        },
+        {
+            "id": "Exportar",
+            "icono": "src/resources/icons/download.svg",
+            "tooltip": "Exportar",
+            "tipo": "export_row",
+            "orden": 3
         }
     ],
     "boton_nuevo": {
         "habilitado": true,
-        "texto": "+ Nuevo",
+        "texto": "+ Nuevo Activo",
         "dialog_class": "ActivoDialog"
     },
     "paginacion": {

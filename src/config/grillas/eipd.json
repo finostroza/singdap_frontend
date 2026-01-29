@@ -12,20 +12,36 @@
     "campo_id": "eipd_id",
     "columnas": [
         {
-            "campo_api": "codigo_eipd",
-            "etiqueta": "ID",
-            "visible": true,
-            "ancho": 80,
-            "stretch": false,
-            "orden": 1
-        },
-        {
             "campo_api": "nombre_evaluacion",
-            "etiqueta": "Nombre Evaluación",
+            "etiqueta": "Nombre",
             "visible": true,
             "ancho": null,
             "stretch": true,
+            "orden": 1
+        },
+        {
+            "campo_api": "subsecretaria",
+            "etiqueta": "Subsecretaría",
+            "visible": true,
+            "ancho": 200,
+            "stretch": false,
             "orden": 2
+        },
+        {
+            "campo_api": "division",
+            "etiqueta": "División",
+            "visible": true,
+            "ancho": 150,
+            "stretch": false,
+            "orden": 3
+        },
+        {
+            "campo_api": "riesgos_identificados",
+            "etiqueta": "Riesgos identificados",
+            "visible": true,
+            "ancho": 200,
+            "stretch": false,
+            "orden": 4
         },
         {
             "campo_api": "estado",
@@ -33,15 +49,15 @@
             "visible": true,
             "ancho": 100,
             "stretch": false,
-            "orden": 3
+            "orden": 5
         },
         {
-            "campo_api": "riesgo",
-            "etiqueta": "Riesgo",
+            "campo_api": "fecha_aprobacion",
+            "etiqueta": "Fecha aprobación",
             "visible": true,
-            "ancho": 100,
+            "ancho": 120,
             "stretch": false,
-            "orden": 4
+            "orden": 6
         }
     ],
     "valor_nulo": "—",
@@ -77,6 +93,16 @@
             "param_api": "estado_id",
             "ancho": 200,
             "orden": 1
+        },
+        {
+            "id": "subsecretaria",
+            "tipo": "combobox",
+            "etiqueta_defecto": "Subsecretarías: Todas",
+            "endpoint": "/setup/subsecretarias",
+            "cache_key": "catalogo_subsecretarias",
+            "param_api": "subsecretaria_id",
+            "ancho": 220,
+            "orden": 2
         }
     ],
     "acciones": [

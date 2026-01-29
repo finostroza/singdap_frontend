@@ -51,43 +51,27 @@
                     "required": false
                 },
                 {
-                    "key": "ubicacion_activo",
-                    "label": "¿Dónde se aloja el activo?",
-                    "description": "Seleccione el entorno donde se encuentra alojado el activo de datos",
-                    "type": "combo",
-                    "multiple": true,
-                    "source": "/catalogos/ubicacion-activo",
-                    "cache_key": "catalogo_ubicacion",
-                    "required": true
-                },
-                {
                     "key": "infraestructura_ti",
                     "label": "Infraestructura TI",
                     "description": "Infraestructura tecnológica asociada al activo de datos",
-                    "type": "combo",
-                    "multiple": true,
-                    "source": "/catalogos/infraestructura-ti",
-                    "cache_key": "catalogo_infraestructura",
+                    "type": "text",
                     "required": false
                 },
                 {
                     "key": "procesos_vinculados",
                     "label": "Procesos vinculados",
-                    "description": "",
-                    "type": "combo",
-                    "source": "/catalogos/procesos",
-                    "cache_key": "catalogo_procesos",
+                    "description": "Vinculación con procesos institucionales o de negocio.",
+                    "type": "text",
                     "required": false
                 },
                 {
-                    "key": "convenio_vinculado",
-                    "label": "Convenio Vinculado",
+                    "key": "marco_habilitante_id",
+                    "label": "Marco Habilitante / Convenio",
                     "description": "Indique si el activo de datos se encuentra asociado a algún convenio, acuerdo o marco habilitante vigente.",
                     "type": "combo",
-                    "multiple": true,
-                    "source": "/catalogos/convenios",
-                    "cache_key": "catalogo_convenios",
-                    "required": true
+                    "source": "/catalogos/marco-habilitante",
+                    "cache_key": "catalogo_marco_habilitante",
+                    "required": false
                 },
                 {
                     "key": "importancia_id",
@@ -112,19 +96,12 @@
                     "required": true
                 },
                 {
-                    "key": "fono_responsable",
-                    "label": "Fono Responsable",
-                    "description": "Número de contacto del responsable",
-                    "type": "text",
-                    "required": true
-                },
-                {
                     "key": "rol",
                     "label": "Rol",
-                    "description": "que desempeña el responsable respecto del activo de datos (por ejemplo: dueño del dato, encargado operativo, contraparte técnica).",
+                    "description": "Rol que desempeña el responsable respecto del activo de datos.",
                     "type": "combo",
-                    "source": "/catalogos/roles",
-                    "cache_key": "catalogo_roles",
+                    "source": "/catalogos/rol-activo",
+                    "cache_key": "catalogo_rol_activo",
                     "required": true
                 },
                 {
@@ -147,26 +124,17 @@
                     "depends_on": "subsecretaria_id",
                     "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}",
                     "required": true
-                },
-                {
-                    "key": "departamento_id",
-                    "label": "Departamento",
-                    "description": "Departamento del responsable de la gestión del activo de datos.",
-                    "type": "combo",
-                    "source": "/catalogos/departamentos",
-                    "cache_key": "catalogo_departamentos",
-                    "required": true
                 }
             ]
         },
         {
             "title": "3. Seguridad y Privacidad",
-            "description": "Niveles de seguridad y privacidad.",
+            "description": "Niveles de seguridad, privacidad y controles.",
             "fields": [
                 {
                     "key": "criticidad_id",
                     "label": "Criticidad",
-                    "description": "Nivel de criticidad del activo de datos considerando su impacto institucional, operativo y reputacional ante incidentes de seguridad o indisponibilidad.",
+                    "description": "Nivel de criticidad del activo considerando su impacto.",
                     "type": "combo",
                     "source": "/catalogos/criticidad",
                     "cache_key": "catalogo_criticidad",
@@ -175,11 +143,29 @@
                 {
                     "key": "nivel_confidencialidad_id",
                     "label": "Confidencialidad",
-                    "description": "Nivel de confidencialidad del activo de datos según las políticas institucionales vigentes.",
+                    "description": "Nivel de confidencialidad según políticas vigentes.",
                     "type": "combo",
                     "source": "/catalogos/nivel-confidencialidad",
                     "cache_key": "catalogo_confidencialidad",
                     "required": true
+                },
+                {
+                    "key": "medidas_seguridad_id",
+                    "label": "Medidas de Seguridad",
+                    "description": "Medidas de seguridad aplicadas al activo.",
+                    "type": "combo",
+                    "source": "/catalogos/medidas-seguridad",
+                    "cache_key": "catalogo_medidas_seguridad",
+                    "required": false
+                },
+                {
+                    "key": "controles_acceso_id",
+                    "label": "Controles de Acceso",
+                    "description": "Mecanismos de control de acceso implementados.",
+                    "type": "combo",
+                    "source": "/catalogos/controles-acceso",
+                    "cache_key": "catalogo_controles_acceso",
+                    "required": false
                 }
             ]
         },
@@ -190,9 +176,9 @@
                 {
                     "key": "categoria_id",
                     "label": "Categoría",
-                    "description": "Categoría o tipo de datos contenidos en el activo, pudiendo seleccionar una o más opciones según corresponda.",
+                    "description": "Categoría o tipo de datos contenidos en el activo.",
                     "type": "combo",
-                    "multiple": true,
+                    "multiple": false,
                     "source": "/catalogos/categoria-activo",
                     "cache_key": "catalogo_categorias",
                     "required": true
@@ -200,7 +186,7 @@
                 {
                     "key": "datos_sensibles",
                     "label": "¿Tiene datos Sensibles?",
-                    "description": "Indique si el activo de datos contiene datos personales de carácter sensible, conforme a la normativa vigente.",
+                    "description": "Indique si el activo contiene datos personales sensibles.",
                     "type": "combo_static",
                     "options": [
                         {
@@ -215,13 +201,11 @@
                     "required": true
                 },
                 {
-                    "key": "tipo_sensible_id",
+                    "key": "tipo_sensible",
                     "label": "Tipo Sensible",
-                    "description": "Especifique el tipo de dato personal sensible contenido en el activo, solo en caso de haber indicado que sí existen datos sensibles.",
-                    "type": "combo",
-                    "source": "/catalogos/tipo-sensible",
-                    "cache_key": "catalogo_tipo_sensible",
-                    "required": true
+                    "description": "Especifique el tipo de dato sensible (si aplica).",
+                    "type": "text",
+                    "required": false
                 }
             ]
         }

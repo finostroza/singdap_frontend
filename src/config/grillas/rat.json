@@ -12,36 +12,60 @@
     "campo_id": "rat_id",
     "columnas": [
         {
-            "campo_api": "codigo_rat",
-            "etiqueta": "Código",
-            "visible": true,
-            "ancho": 100,
-            "stretch": false,
-            "orden": 1
-        },
-        {
-            "campo_api": "nombre_tratamiento",
-            "etiqueta": "Nombre Tratamiento",
+            "campo_api": "nombre_rat",
+            "etiqueta": "Nombre",
             "visible": true,
             "ancho": null,
             "stretch": true,
+            "orden": 1
+        },
+        {
+            "campo_api": "tipo_rat",
+            "etiqueta": "Tipo",
+            "visible": true,
+            "ancho": 150,
+            "stretch": false,
             "orden": 2
         },
         {
-            "campo_api": "finalidad",
-            "etiqueta": "Finalidad",
+            "campo_api": "subsecretaria",
+            "etiqueta": "Subsecretaría",
             "visible": true,
-            "ancho": 150,
+            "ancho": 200,
             "stretch": false,
             "orden": 3
         },
         {
-            "campo_api": "base_legal",
-            "etiqueta": "Base Legal",
+            "campo_api": "division",
+            "etiqueta": "División",
+            "visible": true,
+            "ancho": 100,
+            "stretch": false,
+            "orden": 4
+        },
+        {
+            "campo_api": "estado",
+            "etiqueta": "Estado",
+            "visible": true,
+            "ancho": 100,
+            "stretch": false,
+            "orden": 5
+        },
+        {
+            "campo_api": "corresponde_eipd",
+            "etiqueta": "Corresponde EIPDP",
+            "visible": true,
+            "ancho": 140,
+            "stretch": false,
+            "orden": 6
+        },
+        {
+            "campo_api": "fecha_aprobacion",
+            "etiqueta": "Fecha aprobación",
             "visible": true,
             "ancho": 120,
             "stretch": false,
-            "orden": 4
+            "orden": 7
         }
     ],
     "valor_nulo": "—",
@@ -64,14 +88,24 @@
     },
     "filtros": [
         {
-            "id": "responsable",
+            "id": "subsecretaria",
             "tipo": "combobox",
-            "etiqueta_defecto": "Responsables: Todos",
+            "etiqueta_defecto": "Subsecretarías: Todas",
             "endpoint": "/setup/subsecretarias",
             "cache_key": "catalogo_subsecretarias",
             "param_api": "subsecretaria_id",
             "ancho": 220,
             "orden": 1
+        },
+        {
+            "id": "estado",
+            "tipo": "combobox",
+            "etiqueta_defecto": "Estados: Todos",
+            "endpoint": "/catalogos/estado-rat",
+            "cache_key": "catalogo_estado_rat",
+            "param_api": "estado_id",
+            "ancho": 200,
+            "orden": 2
         }
     ],
     "acciones": [

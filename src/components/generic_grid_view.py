@@ -5,8 +5,11 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QLineEdit, QComboBox,
-    QFrame, QHeaderView
+    QFrame, QHeaderView, QMenu, QFileDialog
 )
+from PySide6.QtGui import QTextDocument
+from PySide6.QtPrintSupport import QPrinter
+import csv
 from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool
 
 from src.core.api_client import ApiClient
@@ -156,6 +159,33 @@ class GenericGridView(QWidget):
         
         filters_layout.addStretch()
         
+        # Botón de Exportación
+        self.export_btn = QPushButton("Exportar Grilla")
+        # Igualar dimensiones del botón primario pero conservando un color neutral
+        self.export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f3f4f6; 
+                color: #374151;
+                border: 1px solid #d1d5db;
+                border-radius: 10px;
+                padding: 10px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #e5e7eb;
+            }
+        """)
+
+        export_menu = QMenu(self)
+        csv_action = export_menu.addAction("Exportar a CSV")
+        pdf_action = export_menu.addAction("Exportar a PDF")
+        
+        csv_action.triggered.connect(self._export_csv)
+        pdf_action.triggered.connect(self._export_pdf)
+        
+        self.export_btn.setMenu(export_menu)
+        filters_layout.addWidget(self.export_btn)
+
         # New Button
         new_btn_config = self.config.get("boton_nuevo", {})
         if new_btn_config.get("habilitado"):
@@ -482,6 +512,151 @@ class GenericGridView(QWidget):
         elif action_type == "delete":
             self._execute_delete(action_config, record_id)
 
+        elif action_type == "export_row":
+            self._export_single_row(record_id)
+
+    def _export_single_row(self, record_id):
+        endpoint_template = self.config.get("endpoints", {}).get("detalle")
+        if not endpoint_template:
+            self._show_export_error("No se ha configurado endpoint de detalle.")
+            return
+
+        url = endpoint_template.replace("{id}", str(record_id))
+        
+        self.loading_overlay.show_loading()
+        
+        # Define worker task that fetches AND enriches
+        def fetch_and_enrich():
+            # 1. Fetch Raw Data
+            data = self.api.get(url)
+            if not data: 
+                return None
+                
+            # 2. Enrich if form config is present
+            form_config_path = self.config.get("form_config")
+            if form_config_path:
+                try:
+                    return self._enrich_data(data, form_config_path)
+                except Exception as e:
+                    print(f"Error enriching data: {e}")
+                    return data # Fallback to raw
+            return data
+            
+        worker = ApiWorker(fetch_and_enrich, parent=self)
+        worker.finished.connect(lambda data: self._save_single_row_csv(data, record_id))
+        worker.error.connect(lambda e: (
+            self.loading_overlay.hide_loading(),
+            self._show_export_error(f"Error obteniendo datos: {e}")
+        ))
+        self.worker = worker # Keep ref
+        worker.start()
+
+    def _enrich_data(self, data, config_path):
+        # Load Form Config
+        with open(config_path, 'r', encoding='utf-8') as f:
+            form_config = json.load(f)
+            
+        # Build Field Map
+        field_map = {}
+        for section in form_config.get("sections", []):
+            for field in section.get("fields", []):
+                field_map[field["key"]] = field
+                
+        enriched = data.copy()
+        
+        # Process each field
+        for key, value in data.items():
+            if value is None:
+                continue
+                
+            field_cfg = field_map.get(key)
+            if not field_cfg:
+                continue
+                
+            ftype = field_cfg.get("type")
+            
+            # Static Options (e.g. BoolYesNo)
+            if ftype == "combo_static":
+                options = field_cfg.get("options", [])
+                # Handle boolean vs string comparison
+                for opt in options:
+                    # Loose comparison for bools/strings
+                    if str(opt["id"]) == str(value):
+                        enriched[key] = opt["nombre"]
+                        break
+                        
+            # Dynamic Combos
+            elif ftype == "combo":
+                source = field_cfg.get("source")
+                cache_key = field_cfg.get("cache_key")
+                
+                # Handling dependent combos (url params may need values)
+                # For complex dependencies, this simple enricher might fall short
+                # But typically 'source' is static or we can try to fetch generic catalogs
+                # If source has {value}, we might skip or try to resolve.
+                # But for standard catalogs (Estado, Tipo, etc) it works suitable.
+                
+                if source and "{" not in source:     
+                    try:
+                        # Synchronous fetch (ok since we are in worker thread)
+                        options = self.catalogo_service.get_catalogo(source, cache_key)
+                        if options:
+                            # Search for ID
+                            # Handle standard ID format (sometimes UUID string, sometimes int)
+                            found = False
+                            # Support multiple selection (list of IDs)
+                            if isinstance(value, list):
+                                names = []
+                                for v in value:
+                                    for opt in options:
+                                        if str(opt["id"]) == str(v):
+                                            names.append(opt["nombre"])
+                                            break
+                                enriched[key] = ", ".join(names)
+                                found = True
+                            else:
+                                for opt in options:
+                                    if str(opt["id"]) == str(value):
+                                        enriched[key] = opt["nombre"]
+                                        found = True
+                                        break
+                    except Exception as e:
+                        print(f"Error resolving catalog {source}: {e}")
+                        
+        return enriched
+
+    def _save_single_row_csv(self, data, record_id):
+        self.loading_overlay.hide_loading()
+        if not data:
+            self._show_export_error("No se obtuvieron datos.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            f"Exportar Registro {record_id}", 
+            f"registro_{record_id}.csv", 
+            "CSV (*.csv)"
+        )
+        
+        if not file_path:
+            return
+            
+        if not file_path.endswith('.csv'):
+            file_path += '.csv'
+            
+        try:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Option A: Vertical (Property | Value) - Better for reading a single record form
+                writer.writerow(["Campo", "Valor"])
+                for key, value in data.items():
+                    writer.writerow([key, str(value) if value is not None else ""])
+                    
+        except Exception as e:
+            LoggerService().log_error("Error guardando CSV único", e)
+            self._show_export_error(f"Error al guardar archivo: {str(e)}")
+
     def _execute_delete(self, action_config, record_id):
         confirm_config = action_config.get("confirmacion", {})
         
@@ -521,6 +696,347 @@ class GenericGridView(QWidget):
             dialog = DialogClass(self)
             if dialog.exec():
                 self._reload_all()
+
+    # ======================================================
+    # Lógica de Exportación
+    # ======================================================
+
+    def _show_export_error(self, message="No hay registros para exportar"):
+        AlertDialog(
+            title="Aviso", 
+            message=message, 
+            icon_path="src/resources/icons/alert_info.svg", 
+            confirm_text="Entendido", 
+            parent=self
+        ).exec()
+
+    def _export_csv(self):
+        if self.table.rowCount() == 0:
+            self._show_export_error()
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(self, "Exportar CSV", "", "CSV (*.csv)")
+        if not file_path:
+            return
+            
+        if not file_path.endswith('.csv'):
+            file_path += '.csv'
+
+        try:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Prepara encabezados
+                headers = []
+                visible_cols = []
+                
+                for col in range(self.table.columnCount()):
+                    if self.table.isColumnHidden(col):
+                        continue
+                        
+                    header_item = self.table.horizontalHeaderItem(col)
+                    label = header_item.text() if header_item else ""
+                    if label == "Acciones":
+                        continue
+                        
+                    headers.append(label)
+                    visible_cols.append(col)
+                
+                writer.writerow(headers)
+                
+                # Prepara filas
+                for row in range(self.table.rowCount()):
+                    row_data = []
+                    for col in visible_cols:
+                        item = self.table.item(row, col)
+                        row_data.append(item.text() if item else "")
+                    writer.writerow(row_data)
+                    
+        except Exception as e:
+            LoggerService().log_error("Error exportando a CSV", e)
+            self._show_export_error(f"Error al exportar: {str(e)}")
+
+    def _export_pdf(self):
+        if self.table.rowCount() == 0:
+            self._show_export_error()
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(self, "Exportar PDF", "", "PDF (*.pdf)")
+        if not file_path:
+            return
+            
+        if not file_path.endswith('.pdf'):
+            file_path += '.pdf'
+            
+        try:
+            doc = QTextDocument()
+            
+            # Estilo HTML simple
+            html = """
+            <html>
+            <head>
+            <style>
+                body { font-family: sans-serif; }
+                h1 { color: #333; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                th { background-color: #f2f2f2; font-weight: bold; padding: 8px; border: 1px solid #ccc; text-align: center; font-size: 10pt; }
+                td { padding: 8px; border: 1px solid #ccc; font-size: 10pt; }
+            </style>
+            </head>
+            <body>
+            """
+            
+            html += f"<h1>{self.config.get('titulo', 'Reporte')}</h1>"
+            html += f"<p>Generado el: {QDateTime.currentDateTime().toString('dd/MM/yyyy HH:mm')}</p>"
+            html += "<table><thead><tr>"
+            
+            # Encabezados y Columnas
+            visible_cols = []
+            for col in range(self.table.columnCount()):
+                if self.table.isColumnHidden(col):
+                    continue
+                header_item = self.table.horizontalHeaderItem(col)
+                label = header_item.text() if header_item else ""
+                if label == "Acciones":
+                    continue
+                
+                html += f"<th>{label}</th>"
+                visible_cols.append(col)
+                
+            html += "</tr></thead><tbody>"
+            
+            # Filas
+            for row in range(self.table.rowCount()):
+                html += "<tr>"
+                for col in visible_cols:
+                    item = self.table.item(row, col)
+                    text = item.text() if item else ""
+                    html += f"<td>{text}</td>"
+                html += "</tr>"
+                
+            html += "</tbody></table></body></html>"
+            
+            doc.setHtml(html)
+            
+            printer = QPrinter(QPrinter.HighResolution)
+            printer.setOutputFormat(QPrinter.PdfFormat)
+            printer.setOutputFileName(file_path)
+            
+            doc.print_(printer)
+            
+        except Exception as e:
+            LoggerService().log_error("Error exportando a PDF", e)
+            self._show_export_error(f"Error al exportar: {str(e)}")
+
+    def _execute_delete(self, action_config, record_id):
+        confirm_config = action_config.get("confirmacion", {})
+        
+        confirm = AlertDialog(
+            title=confirm_config.get("titulo", "Eliminar"),
+            message=confirm_config.get("mensaje", "¿Estás seguro?"),
+            icon_path=confirm_config.get("icono", "src/resources/icons/alert_warning.svg"),
+            confirm_text=confirm_config.get("boton_confirmar", "Eliminar"),
+            cancel_text=confirm_config.get("boton_cancelar", "Cancelar"),
+            parent=self
+        )
+        
+        if confirm.exec():
+            try:
+                endpoint = self.config["endpoints"]["eliminar"].replace("{id}", str(record_id))
+                self.api.delete(endpoint)
+                
+                LoggerService().log_event(f"Usuario eliminó registro ID: {record_id} en {self.config['id']}")
+                self._reload_all()
+            except Exception as e:
+                LoggerService().log_error(f"Error eliminando ID: {record_id}", e)
+                AlertDialog(
+                    title="Error", 
+                    message=str(e), 
+                    icon_path="src/resources/icons/alert_error.svg", 
+                    confirm_text="Ok", 
+                    parent=self
+                ).exec()
+
+    def _open_new(self):
+        new_config = self.config.get("boton_nuevo", {})
+        dialog_class_name = new_config.get("dialog_class")
+        DialogClass = get_dialog_class(dialog_class_name)
+        
+        if DialogClass:
+            # Modo creación generalmente no implica argumento ID
+            dialog = DialogClass(self)
+            if dialog.exec():
+                self._reload_all()
+
+    def _execute_action(self, action_config, record_id):
+        action_type = action_config.get("tipo")
+        
+        if action_type == "dialog":
+            dialog_class_name = action_config.get("dialog_class")
+            DialogClass = get_dialog_class(dialog_class_name)
+            if DialogClass:
+                # Asumimos una firma de constructor genérica: (parent, id=...)
+                # Para ActivoDialog, se espera 'activo_id'.
+                # Para futuros diálogos, deberíamos estandarizar en 'record_id'.
+                # Solución temporal para soportar ActivoDialog sin romperlo:
+                
+                kwargs = {}
+                if dialog_class_name == "ActivoDialog":
+                    kwargs["activo_id"] = record_id
+                else:
+                    kwargs["record_id"] = record_id # A futuro
+                    
+                dialog = DialogClass(self, **kwargs)
+                if dialog.exec():
+                    self._reload_all()
+            else:
+                print(f"Unknown dialog class: {dialog_class_name}")
+
+        elif action_type == "delete":
+            self._execute_delete(action_config, record_id)
+
+        elif action_type == "export_row":
+            self._export_single_row(record_id)
+
+    def _export_single_row(self, record_id):
+        endpoint_template = self.config.get("endpoints", {}).get("detalle")
+        if not endpoint_template:
+            self._show_export_error("No se ha configurado endpoint de detalle.")
+            return
+
+        url = endpoint_template.replace("{id}", str(record_id))
+        
+        self.loading_overlay.show_loading()
+        
+        # Define tarea en segundo plano que obtiene y enriquece la información
+        def fetch_and_enrich():
+            # 1. Obtener Datos Crudos desde la fuente
+            data = self.api.get(url)
+            if not data: 
+                return None
+                
+            # 2. Enriquecer datos si existe configuración de formulario (traducir IDs a texto)
+            form_config_path = self.config.get("form_config")
+            if form_config_path:
+                try:
+                    return self._enrich_data(data, form_config_path)
+                except Exception as e:
+                    print(f"Error enriching data: {e}")
+                    return data # Fallback a crudo
+            return data
+            
+        worker = ApiWorker(fetch_and_enrich, parent=self)
+        worker.finished.connect(lambda data: self._save_single_row_csv(data, record_id))
+        worker.error.connect(lambda e: (
+            self.loading_overlay.hide_loading(),
+            self._show_export_error(f"Error obteniendo datos: {e}")
+        ))
+        self.worker = worker # Mantener referencia
+        worker.start()
+
+    def _enrich_data(self, data, config_path):
+        # Cargar Configuración del Formulario
+        with open(config_path, 'r', encoding='utf-8') as f:
+            form_config = json.load(f)
+            
+        # Construir Mapa de Campos
+        field_map = {}
+        for section in form_config.get("sections", []):
+            for field in section.get("fields", []):
+                field_map[field["key"]] = field
+                
+        enriched = data.copy()
+        
+        # Procesar cada campo
+        for key, value in data.items():
+            if value is None:
+                continue
+                
+            field_cfg = field_map.get(key)
+            if not field_cfg:
+                continue
+                
+            ftype = field_cfg.get("type")
+            
+            # Opciones Estáticas (ej. BoolYesNo)
+            if ftype == "combo_static":
+                options = field_cfg.get("options", [])
+                # Manejar comparación booleana vs string
+                for opt in options:
+                    # Comparación laxa
+                    if str(opt["id"]) == str(value):
+                        enriched[key] = opt["nombre"]
+                        break
+                        
+            # Combos Dinámicos
+            elif ftype == "combo":
+                source = field_cfg.get("source")
+                cache_key = field_cfg.get("cache_key")
+                
+                # Manejo de combos dependientes
+                # Si la fuente tiene {value}, podríamos intentar resolver o saltar.
+                # Para catálogos estándar (Estado, Tipo, etc) funciona adecuadamente.
+                
+                if source and "{" not in source:     
+                    try:
+                        # Busqueda síncrona (segura ya que estamos en hilo worker)
+                        options = self.catalogo_service.get_catalogo(source, cache_key)
+                        if options:
+                            # Buscar por ID
+                            # Manejar formato estándar de ID
+                            found = False
+                            # Soporte selección múltiple (lista de IDs)
+                            if isinstance(value, list):
+                                names = []
+                                for v in value:
+                                    for opt in options:
+                                        if str(opt["id"]) == str(v):
+                                            names.append(opt["nombre"])
+                                            break
+                                enriched[key] = ", ".join(names)
+                                found = True
+                            else:
+                                for opt in options:
+                                    if str(opt["id"]) == str(value):
+                                        enriched[key] = opt["nombre"]
+                                        found = True
+                                        break
+                    except Exception as e:
+                        print(f"Error resolving catalog {source}: {e}")
+                        
+        return enriched
+
+    def _save_single_row_csv(self, data, record_id):
+        self.loading_overlay.hide_loading()
+        if not data:
+            self._show_export_error("No se obtuvieron datos.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            f"Exportar Registro {record_id}", 
+            f"registro_{record_id}.csv", 
+            "CSV (*.csv)"
+        )
+        
+        if not file_path:
+            return
+            
+        if not file_path.endswith('.csv'):
+            file_path += '.csv'
+            
+        try:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Opción A: Formato vertical (Campo | Valor), ideal para lectura de registro único
+                writer.writerow(["Campo", "Valor"])
+                for key, value in data.items():
+                    writer.writerow([key, str(value) if value is not None else ""])
+                    
+        except Exception as e:
+            LoggerService().log_error("Error guardando CSV único", e)
+            self._show_export_error(f"Error al guardar archivo: {str(e)}")
 
     # ======================================================
     # Pagination
