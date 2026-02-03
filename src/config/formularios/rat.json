@@ -58,79 +58,36 @@
                     "key": "tipo_tratamiento",
                     "label": "Tipo de tratamiento",
                     "description": "Seleccione el tipo de tratamiento (seleccione solo 1 de las opciones)",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "proceso_institucional",
-                            "nombre": "Proceso institucional"
-                        },
-                        {
-                            "id": "iniciativa_ia",
-                            "nombre": "Iniciativa de IA"
-                        },
-                        {
-                            "id": "gestion_rrhh",
-                            "nombre": "Gestión RRHH"
-                        },
-                        {
-                            "id": "sistema",
-                            "nombre": "Sistema"
-                        },
-                        {
-                            "id": "proyecto",
-                            "nombre": "Proyecto"
-                        },
-                        {
-                            "id": "nomina",
-                            "nombre": "Nómina"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra (especifique)"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-tratamiento",
+                    "cache_key": "catalogo_rat_tipo_tratamiento",
                     "required": true
                 },
                 {
                     "key": "subsecretaria",
                     "label": "Subsecretaria",
                     "description": "Seleccione la unidad responsable.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ses",
-                            "nombre": "SES"
-                        },
-                        {
-                            "id": "sss",
-                            "nombre": "SSS"
-                        },
-                        {
-                            "id": "sn",
-                            "nombre": "SN"
-                        }
+                    "type": "combo",
+                    "source": "/setup/subsecretarias",
+                    "cache_key": "catalogo_subsecretarias",
+                    "triggers_reload": [
+                        "division"
                     ],
                     "required": true
                 },
                 {
                     "key": "division",
                     "label": "División",
+                    "description": "División organizacional a la cual se adscribe el responsable.",
                     "type": "combo",
-                    "source": "/setup/divisiones",
                     "depends_on": "subsecretaria",
                     "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}",
-                    "triggers_reload": [
-                        "departamento"
-                    ],
                     "required": true
                 },
                 {
                     "key": "departamento",
                     "label": "Departamento",
-                    "type": "combo",
-                    "source": "/setup/departamentos",
-                    "depends_on": "division",
-                    "dependency_endpoint_template": "/setup/departamentos?division_id={value}",
+                    "type": "text",
                     "required": true
                 },
                 {

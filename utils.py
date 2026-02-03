@@ -39,14 +39,11 @@ def load_styles(app):
 
     qss = qss_path.read_text(encoding="utf-8")
 
-    # 🔥 1. Elimina prefijos duplicados tipo src/resources/src/resources
     qss = re.sub(
         r'url\((["\']?)(?:src/resources/)+',
         r'url(\1',
         qss
     )
-
-    # 🔥 2. Convierte TODAS las urls a rutas absolutas válidas
     qss = re.sub(
         r'url\((["\']?)',
         rf'url(\1{base.as_posix()}/',

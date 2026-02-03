@@ -58,79 +58,36 @@
                     "key": "tipo_tratamiento",
                     "label": "Tipo de tratamiento",
                     "description": "Seleccione el tipo de tratamiento (seleccione solo 1 de las opciones)",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "proceso_institucional",
-                            "nombre": "Proceso institucional"
-                        },
-                        {
-                            "id": "iniciativa_ia",
-                            "nombre": "Iniciativa de IA"
-                        },
-                        {
-                            "id": "gestion_rrhh",
-                            "nombre": "Gestión RRHH"
-                        },
-                        {
-                            "id": "sistema",
-                            "nombre": "Sistema"
-                        },
-                        {
-                            "id": "proyecto",
-                            "nombre": "Proyecto"
-                        },
-                        {
-                            "id": "nomina",
-                            "nombre": "Nómina"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra (especifique)"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-tratamiento",
+                    "cache_key": "catalogo_rat_tipo_tratamiento",
                     "required": true
                 },
                 {
                     "key": "subsecretaria",
                     "label": "Subsecretaria",
                     "description": "Seleccione la unidad responsable.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ses",
-                            "nombre": "SES"
-                        },
-                        {
-                            "id": "sss",
-                            "nombre": "SSS"
-                        },
-                        {
-                            "id": "sn",
-                            "nombre": "SN"
-                        }
+                    "type": "combo",
+                    "source": "/setup/subsecretarias",
+                    "cache_key": "catalogo_subsecretarias",
+                    "triggers_reload": [
+                        "division"
                     ],
                     "required": true
                 },
                 {
                     "key": "division",
                     "label": "División",
+                    "description": "División organizacional a la cual se adscribe el responsable.",
                     "type": "combo",
-                    "source": "/setup/divisiones",
                     "depends_on": "subsecretaria",
                     "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}",
-                    "triggers_reload": [
-                        "departamento"
-                    ],
                     "required": true
                 },
                 {
                     "key": "departamento",
                     "label": "Departamento",
-                    "type": "combo",
-                    "source": "/setup/departamentos",
-                    "depends_on": "division",
-                    "dependency_endpoint_template": "/setup/departamentos?division_id={value}",
+                    "type": "text",
                     "required": true
                 },
                 {
@@ -262,25 +219,9 @@
                     "key": "base_licitud_inst",
                     "label": "Mecanismo habilitante del tratamiento",
                     "description": "Leyes, decretos, resoluciones u otros actos habilitantes. Ej: Resolución exenta N°XX.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ley",
-                            "nombre": "Ley"
-                        },
-                        {
-                            "id": "decretos",
-                            "nombre": "Decretos"
-                        },
-                        {
-                            "id": "administrativa",
-                            "nombre": "Administrativa"
-                        },
-                        {
-                            "id": "otros",
-                            "nombre": "Otros"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/marco-habilitante",
+                    "cache_key": "catalogo_marco_habilitante_rat",
                     "required": true
                 },
                 {
@@ -300,171 +241,37 @@
                     "key": "categorias_datos_inst",
                     "label": "Categorías de datos personales tratados",
                     "description": "Seleccione la opción que corresponda al tratamiento de datos.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "identificacion",
-                            "nombre": "Datos de identificación"
-                        },
-                        {
-                            "id": "contacto",
-                            "nombre": "Datos de contacto"
-                        },
-                        {
-                            "id": "socioeconomicos",
-                            "nombre": "Datos socioeconómicos"
-                        },
-                        {
-                            "id": "administrativos",
-                            "nombre": "Datos administrativos"
-                        },
-                        {
-                            "id": "sensibles",
-                            "nombre": "Datos sensibles (especificar)"
-                        }
-                    ],
-                    "required": true
-                },
-                {
-                    "key": "detalle_datos_sensibles_inst",
-                    "label": "Detalle Datos Sensibles",
-                    "description": "Especifique las categorías de datos sensibles tratadas.",
-                    "type": "combo_static",
-                    "multiple": true,
-                    "options": [
-                        {
-                            "id": "etnia",
-                            "nombre": "Etnia"
-                        },
-                        {
-                            "id": "situacion_socioeconomica",
-                            "nombre": "Situación socioeconómica"
-                        },
-                        {
-                            "id": "sexo",
-                            "nombre": "Sexo"
-                        },
-                        {
-                            "id": "salud_fisica_psiquica",
-                            "nombre": "Condiciones de salud físicas y psíquicas"
-                        },
-                        {
-                            "id": "dependencias",
-                            "nombre": "Dependencias funcionales"
-                        },
-                        {
-                            "id": "discapacidad",
-                            "nombre": "Discapacidad"
-                        },
-                        {
-                            "id": "invalidez",
-                            "nombre": "Invalidez"
-                        },
-                        {
-                            "id": "necesidades_educacion",
-                            "nombre": "Necesidades especiales para la educación"
-                        },
-                        {
-                            "id": "vida_privada",
-                            "nombre": "Circunstancias de la vida privada"
-                        },
-                        {
-                            "id": "otros_sensibles",
-                            "nombre": "Otros datos personales (especificar)"
-                        }
-                    ],
-                    "visible_if": {
-                        "field": "categorias_datos_inst",
-                        "value": "sensibles"
-                    },
+                    "type": "combo",
+                    "source": "/catalogos/rat/categorias-datos-personales",
+                    "cache_key": "catalogo_rat_categorias_datos_personales",
                     "required": true
                 },
                 {
                     "key": "poblaciones_vulnerables_inst",
                     "label": "Poblaciones especiales o grupos vulnerables",
                     "description": "Seleccione la o las opciones que correspondan al tratamiento de datos (Selección multiple).",
-                    "type": "combo_static",
+                    "type": "combo",
                     "multiple": true,
-                    "options": [
-                        {
-                            "id": "menores",
-                            "nombre": "Menores de edad"
-                        },
-                        {
-                            "id": "mayores",
-                            "nombre": "Personas mayores"
-                        },
-                        {
-                            "id": "discapacidad",
-                            "nombre": "Personas con discapacidad"
-                        },
-                        {
-                            "id": "migrantes",
-                            "nombre": "Migrantes"
-                        },
-                        {
-                            "id": "indigena",
-                            "nombre": "Población indígena"
-                        },
-                        {
-                            "id": "cuidados",
-                            "nombre": "Personas requirentes de cuidados"
-                        },
-                        {
-                            "id": "dependientes",
-                            "nombre": "Personas dependientes"
-                        },
-                        {
-                            "id": "atributos_sensibles",
-                            "nombre": "Atributos sensibles como el sexo y su modificación registral"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra (especifique)"
-                        }
-                    ],
+                    "source": "/catalogos/rat/poblacion_especial",
+                    "cache_key": "catalogo_rat_poblacion_especial",
                     "required": true
                 },
                 {
                     "key": "tipos_datos",
                     "label": "Tipos de datos",
                     "description": "Marque la opción que corresponda.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "nominados",
-                            "nombre": "Nominados"
-                        },
-                        {
-                            "id": "seudonimizados",
-                            "nombre": "Seudonimizados"
-                        },
-                        {
-                            "id": "anonimizados",
-                            "nombre": "Anonimizados"
-                        },
-                        {
-                            "id": "agregados",
-                            "nombre": "Agregados"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-datos",
+                    "cache_key": "catalogo_rat_tipo_datos",
                     "required": true
                 },
                 {
                     "key": "origen_datos_titulares",
                     "label": "Origen de datos",
                     "description": "Seleccione la o las bases de datos del RIS y los medios de recolección.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ris",
-                            "nombre": "Registro de informacion Social (RIS)"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/origen-datos",
+                    "cache_key": "catalogo_rat_origen_datos",
                     "required": true
                 },
                 {

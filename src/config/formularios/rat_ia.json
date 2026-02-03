@@ -58,79 +58,37 @@
                     "key": "tipo_tratamiento",
                     "label": "Tipo de tratamiento",
                     "description": "Seleccione el tipo de tratamiento (seleccione solo 1 de las opciones)",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "proceso_institucional",
-                            "nombre": "Proceso institucional"
-                        },
-                        {
-                            "id": "iniciativa_ia",
-                            "nombre": "Iniciativa de IA"
-                        },
-                        {
-                            "id": "gestion_rrhh",
-                            "nombre": "Gestión RRHH"
-                        },
-                        {
-                            "id": "sistema",
-                            "nombre": "Sistema"
-                        },
-                        {
-                            "id": "proyecto",
-                            "nombre": "Proyecto"
-                        },
-                        {
-                            "id": "nomina",
-                            "nombre": "Nómina"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra (especifique)"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-tratamiento",
+                    "cache_key": "catalogo_rat_tipo_tratamiento",
                     "required": true
                 },
                 {
                     "key": "subsecretaria",
                     "label": "Subsecretaria",
                     "description": "Seleccione la unidad responsable.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ses",
-                            "nombre": "SES"
-                        },
-                        {
-                            "id": "sss",
-                            "nombre": "SSS"
-                        },
-                        {
-                            "id": "sn",
-                            "nombre": "SN"
-                        }
+                    "type": "combo",
+                    "source": "/setup/subsecretarias",
+                    "cache_key": "catalogo_subsecretarias",
+                    "triggers_reload": [
+                        "division"
                     ],
                     "required": true
                 },
                 {
                     "key": "division",
                     "label": "División",
+                    "description": "División organizacional a la cual se adscribe el responsable.",
                     "type": "combo",
-                    "source": "/setup/divisiones",
                     "depends_on": "subsecretaria",
                     "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}",
-                    "triggers_reload": [
-                        "departamento"
-                    ],
                     "required": true
                 },
                 {
+                    
                     "key": "departamento",
                     "label": "Departamento",
-                    "type": "combo",
-                    "source": "/setup/departamentos",
-                    "depends_on": "division",
-                    "dependency_endpoint_template": "/setup/departamentos?division_id={value}",
+                    "type": "text",
                     "required": true
                 },
                 {
@@ -200,50 +158,18 @@
                     "key": "tipo_tarea_ia",
                     "label": "Tipo de tarea realizada por la IA",
                     "description": "Indique el tipo de funcionalidad que cumple la IA.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "clasificacion",
-                            "nombre": "Clasificación"
-                        },
-                        {
-                            "id": "prediccion",
-                            "nombre": "Predicción"
-                        },
-                        {
-                            "id": "recomendacion",
-                            "nombre": "Recomendación"
-                        },
-                        {
-                            "id": "analisis_texto",
-                            "nombre": "Análisis de texto"
-                        },
-                        {
-                            "id": "generacion_contenido",
-                            "nombre": "Generación de contenido"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-tarea-ia",
+                    "cache_key": "catalogo_rat_tipo_tarea_ia",
                     "required": true
                 },
                 {
                     "key": "alcance_impacto_ia",
                     "label": "Alcance del impacto",
                     "description": "Señale si el uso de IA impacta a...",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "apoyo_procesos",
-                            "nombre": "Apoyo a procesos internos"
-                        },
-                        {
-                            "id": "apoya_decisiones",
-                            "nombre": "Apoya decisiones humanas"
-                        },
-                        {
-                            "id": "efectos_directos",
-                            "nombre": "Produce efectos directos sobre personas"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/alcance-impacto-ia",
+                    "cache_key": "catalogo_rat_alcance_impacto_ia",
                     "required": true
                 },
                 {
@@ -394,21 +320,9 @@
                     "key": "tipo_modelo_ia",
                     "label": "Tipo de modelo",
                     "description": "Indique el tipo de modelo(s) o tecnología utilizada.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ml_clasico",
-                            "nombre": "ML clásico"
-                        },
-                        {
-                            "id": "redes_neuronales",
-                            "nombre": "Redes neuronales"
-                        },
-                        {
-                            "id": "llm",
-                            "nombre": "LLM"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-modelo-ia",
+                    "cache_key": "catalogo_rat_tipo_modelo_ia",
                     "required": true
                 },
                 {

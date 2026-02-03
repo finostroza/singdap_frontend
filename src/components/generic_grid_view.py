@@ -20,6 +20,9 @@ from src.workers.combo_loader import ComboLoaderRunnable
 from src.components.alert_dialog import AlertDialog
 from src.components.loading_overlay import LoadingOverlay
 from src.components.dialog_registry import get_dialog_class
+from src.services.user_service import UserService
+from src.workers.api_worker import ApiWorker
+
 from utils import icon
 
 class GenericGridView(QWidget):
@@ -55,6 +58,26 @@ class GenericGridView(QWidget):
         
         LoggerService().log_event(f"Usuario accedió a {self.config.get('titulo', 'Vista Genérica')}")
         self._reload_all()
+        self.user_service = UserService()
+        self._load_current_user()
+
+    def _load_current_user(self):
+        def do_load():
+            return self.user_service.get_me()
+
+        self.user_worker = ApiWorker(do_load)
+        self.user_worker.finished.connect(self._on_user_loaded)
+        self.user_worker.error.connect(self._on_user_error)
+        self.user_worker.start()
+    
+    def _on_user_loaded(self, user: dict):
+        nombre = user.get("nombre_completo") or "Usuario"
+        self.user_label.setText(nombre)
+
+    def _on_user_error(self, error: str):
+        self.user_label.setText("Usuario")
+
+
 
     def _load_config(self, path: str) -> dict:
         with open(path, 'r', encoding='utf-8') as f:
@@ -81,10 +104,7 @@ class GenericGridView(QWidget):
         header_top.addWidget(title)
         header_top.addStretch()
         
-        # User/Date Box (Preserving existing functionality)
-        # In a purely generic component, this might be injected or optional,
-        # but for now we hardcode it as per "Maintain functionality".
-        self.user_label = QLabel("Felipe Inostroza") # Placeholder/Hardcoded in original
+        self.user_label = QLabel("Cargando...") 
         self.user_label.setObjectName("topUser")
         self.datetime_label = QLabel()
         self.datetime_label.setObjectName("topDatetime")

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QPropertyAnimation, QSize, QEasingCurve, Signal
 from PySide6.QtGui import QPixmap
 
+from src.core.api_client import ApiClient
 from src.components.alert_dialog import AlertDialog
 from src.services.cache_manager import CacheManager
 from utils import icon, resource_path
@@ -208,6 +209,9 @@ class Sidebar(QWidget):
             # Clear cache on logout
             try:
                 CacheManager().clear()
+                api = ApiClient()
+                api.clear_session()
+    
             except Exception:
                 pass
             self.logout_requested.emit()

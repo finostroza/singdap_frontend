@@ -16,21 +16,9 @@
                     "key": "autorizacion_datos_ris",
                     "label": "Autorización de datos RIS o RISE",
                     "description": "Seleccione la autorización de datos RIS que corresponde a este tratamiento.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "formulario_ris",
-                            "nombre": "Formulario de autorización RIS"
-                        },
-                        {
-                            "id": "formulario_rise",
-                            "nombre": "Formulario de autorización RISE"
-                        },
-                        {
-                            "id": "no_aplica",
-                            "nombre": "No Aplica"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/autorizacion-datos",
+                    "cache_key": "catalogo_rat_autorizacion_datos",
                     "required": true
                 },
                 {
@@ -86,25 +74,9 @@
                     "key": "mecanismo_habilitante",
                     "label": "Mecanismo habilitante del tratamiento",
                     "description": "Normativa aplicable al tratamiento (Ley, decretos e instrucción administrativa, otros).",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "ley",
-                            "nombre": "Ley"
-                        },
-                        {
-                            "id": "decretos",
-                            "nombre": "Decretos"
-                        },
-                        {
-                            "id": "administrativa",
-                            "nombre": "Admnistrativa"
-                        },
-                        {
-                            "id": "otros",
-                            "nombre": "Otros"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/marco-habilitante",
+                    "cache_key": "catalogo_marco_habilitante_rat",
                     "required": true
                 },
                 {
@@ -117,17 +89,9 @@
                     "key": "consentimiento_titular",
                     "label": "Consentimiento del titular o habilitación legal",
                     "description": "Seleccione la opción que corresponda al tratamiento de datos.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "consentimiento_fines",
-                            "nombre": "Consentimiento para uno o varios fines especificos"
-                        },
-                        {
-                            "id": "cumplimiento_obligacion",
-                            "nombre": "Cumplimiento de una obligación legal aplicable al responsable del tratamiento"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/consentimiento-titular",
+                    "cache_key": "catalogo_rat_consentimiento_titular",
                     "required": true
                 },
                 {
@@ -146,167 +110,55 @@
                 {
                     "key": "categorias_destinatarios",
                     "label": "Categorías de destinatarios",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "instituciones_ris",
-                            "nombre": "Insituciones en convenio RIS"
-                        },
-                        {
-                            "id": "organismos_convenio",
-                            "nombre": "Organismos con convenio"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra"
-                        },
-                        {
-                            "id": "no_aplica",
-                            "nombre": "No aplica"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/categoria-destinatarios",
+                    "cache_key": "catalogo_rat_categoria_destinatarios",
                     "required": true
                 },
                 {
                     "key": "categorias_datos_personales",
                     "label": "Categorías de datos personales tratados",
                     "description": "Seleccione la o las opciones que correspondan al tratamiento de datos (Selección multiple).",
-                    "type": "combo_static",
+                    "type": "combo",
                     "multiple": true,
-                    "options": [
-                        {
-                            "id": "identificacion",
-                            "nombre": "Datos de identificación"
-                        },
-                        {
-                            "id": "contacto",
-                            "nombre": "Datos de contacto"
-                        },
-                        {
-                            "id": "socioeconomicos",
-                            "nombre": "Datos socioeconómicos"
-                        },
-                        {
-                            "id": "administrativos",
-                            "nombre": "Datos administrativos"
-                        },
-                        {
-                            "id": "sensibles",
-                            "nombre": "Datos sensibles (especificar)"
-                        }
-                    ],
+                    "source": "/catalogos/rat/categorias-datos-personales",
+                    "cache_key": "catalogo_rat_categorias_datos_personales",
                     "required": true
                 },
                 {
                     "key": "poblaciones_vulnerables",
                     "label": "Poblaciones especiales o grupos vulnerables",
                     "description": "Seleccione la o las opciones que correspondan al tratamiento de datos (Selección multiple).",
-                    "type": "combo_static",
+                    "type": "combo",
                     "multiple": true,
-                    "options": [
-                        {
-                            "id": "menores",
-                            "nombre": "Menores de edad"
-                        },
-                        {
-                            "id": "mayores",
-                            "nombre": "Personas mayores"
-                        },
-                        {
-                            "id": "discapacidad",
-                            "nombre": "Personas con discapacidad"
-                        },
-                        {
-                            "id": "migrantes",
-                            "nombre": "Migrantes"
-                        },
-                        {
-                            "id": "indigena",
-                            "nombre": "Población indígena"
-                        },
-                        {
-                            "id": "cuidados",
-                            "nombre": "Personas requirentes de cuidados"
-                        },
-                        {
-                            "id": "dependientes",
-                            "nombre": "Personas dependientes"
-                        },
-                        {
-                            "id": "atributos_sensibles",
-                            "nombre": "Atributos sensibles como el sexo y su modificación registral"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra (especifique)"
-                        }
-                    ],
+                    "source": "/catalogos/rat/poblacion_especial",
+                    "cache_key": "catalogo_rat_poblacion_especial",
                     "required": true
                 },
                 {
                     "key": "tipos_datos",
                     "label": "Tipos de datos",
                     "description": "Marque la opción que corresponda.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "nominados",
-                            "nombre": "Nominados"
-                        },
-                        {
-                            "id": "seudonimizados",
-                            "nombre": "Seudonimizados"
-                        },
-                        {
-                            "id": "anonimizados",
-                            "nombre": "Anonimizados"
-                        },
-                        {
-                            "id": "agregados",
-                            "nombre": "Agregados"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-datos",
+                    "cache_key": "catalogo_rat_tipo_datos",
                     "required": true
                 },
                 {
                     "key": "origen_datos",
                     "label": "Origen de datos",
                     "description": "Seleccione la o las bases de datos del RIS y los medios de recolección.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "registro_ris",
-                            "nombre": "Registro de Informacion Social (RIS)"
-                        },
-                        {
-                            "id": "otra",
-                            "nombre": "Otra"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/origen-datos",
+                    "cache_key": "catalogo_rat_origen_datos",
                     "required": true
                 },
                 {
                     "key": "medio_recoleccion",
                     "label": "Medio recoleccion",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": "sistema_informatico",
-                            "nombre": "Nombre sistema informatico"
-                        },
-                        {
-                            "id": "ris_web",
-                            "nombre": "RIS Web"
-                        },
-                        {
-                            "id": "nas",
-                            "nombre": "Repositorios NAS"
-                        },
-                        {
-                            "id": "sftp",
-                            "nombre": "Casilla SFTP"
-                        }
-                    ],
+                    "type": "combo",
+                    "source": "/catalogos/rat/medio-recoleccion",
+                    "cache_key": "catalogo_rat_medio_recoleccion",
                     "required": true
                 },
                 {

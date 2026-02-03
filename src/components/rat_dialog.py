@@ -31,6 +31,7 @@ class RatDialog(GenericFormDialog):
             combo = self.inputs["tipo_tratamiento"]
             if isinstance(combo, QComboBox):
                 combo.currentIndexChanged.connect(self._check_type_transition)
+        
                 
                 # Check initial state happens in _on_record_data or manual check if New
         
@@ -43,13 +44,14 @@ class RatDialog(GenericFormDialog):
         target_config = None
         target_name = None
         
-        if val == "iniciativa_ia":
+        if val == "df15ad81-74f8-4f1d-8e4a-d92b5b7ece44":  # iniciativa_ia
             target_config = self.config_ia_path
             target_name = "ia"
-        elif val == "proceso_institucional":
+        elif val == "53d1a722-5311-41d1-a2b6-9bbae7ea037b":  # institucional
             target_config = self.config_institucional_path
             target_name = "institucional"
-        elif val in ["rat_simplificado", "gestion_rrhh", "sistema", "proyecto", "nomina", "otra"]:
+        elif val in ["85dd61f7-ab43-462c-ae45-f046812d0695", "1f3e71b0-99d4-41e1-a855-ec65377a6321", "e295e4a8-6622-4c9a-ad47-78da7b36572c",
+                     "e42ae6e9-95d9-43e5-894a-ce6bb663bfa0", "8a06e8c5-8055-40ee-8855-5d7f3f693ca0"]:  # simplificado types
             target_config = self.config_simplificado_path
             target_name = "simplificado"
             
@@ -265,3 +267,7 @@ class RatDialog(GenericFormDialog):
                  pass
         
         super()._on_record_data(data)
+    
+    
+      
+

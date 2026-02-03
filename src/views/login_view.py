@@ -16,6 +16,7 @@ from src.views.main_window import MainWindow
 from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
 from src.services.logger_service import LoggerService
+from src.workers.jwt_utils import decode_jwt
 
 
 
@@ -173,23 +174,34 @@ class LoginView(QWidget):
             self._set_error("Respuesta de autenticación inválida")
             return
 
-        # Guardar token (provisorio, luego lo mejoramos)
-        # Guardar token (provisorio, luego lo mejoramos)
-        self.vm.auth_service.api.set_token(access_token)
-        
-        # Init logger session (using input user as fallback if API doesn't return username, 
-        # though ideally use API user data if available. Using input for now as per plan)
-        user = self.user_input.text().strip()
-        LoggerService().init_session(user)
+        api = self.vm.auth_service.api
+
+        # Guardar token
+        api.set_token(access_token)
+
+        # 🔓 Decodificar token
+        try:
+            payload = decode_jwt(access_token)
+            user_id =payload.get("sub")
+
+            if not user_id:
+                raise ValueError("El token no contiene userId")
+
+            api.set_user_id(str(user_id))  
+
+        except Exception as e:
+            self._set_error(str(e))
+            return
+
+        LoggerService().init_session(str(user_id))
         LoggerService().log_event("Inicio de sesión exitoso")
 
-        # Abrir ventana principal
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
         self.main_window.show()
 
-        # Cerrar login (ocultar para poder restaurar luego)
         self.hide()
+
 
 
     def _on_error(self, error: str):

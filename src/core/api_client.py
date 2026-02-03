@@ -17,10 +17,18 @@ class ApiClient:
             
         self.base_url = API_BASE_URL.rstrip('/')
         self.token = None
+        self.user_id = None   
         self._initialized = True
 
     def set_token(self, token: str):
         self.token = token
+    
+    def set_user_id(self, user_id: str):
+        self.user_id = user_id
+
+    def clear_session(self):
+        self.token = None
+        self.user_id = None
 
     def _headers(self):
         headers = {
