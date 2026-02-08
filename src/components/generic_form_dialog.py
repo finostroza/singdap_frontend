@@ -6,10 +6,11 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QStackedWidget,
     QLabel, QPushButton, QFrame, QScrollArea, QLineEdit, 
     QComboBox, QFormLayout, QProgressBar, QDateEdit, QFileDialog, 
-    QTextEdit, QPlainTextEdit
+    QTextEdit, QPlainTextEdit, QApplication
 )
 from PySide6.QtCore import Qt, QTimer, QThreadPool, QDate
 
+from src.components.risk_matrix_widget import RiskMatrixWidget
 from src.core.api_client import ApiClient
 from src.components.alert_dialog import AlertDialog
 from src.components.wizard_sidebar import WizardSidebar
@@ -22,6 +23,21 @@ from src.components.custom_inputs import CheckableComboBox
 
 class FilePickerWidget(QWidget):
     def __init__(self, parent=None):
+        screen = QApplication.primaryScreen().availableGeometry()
+
+        # Tamaño ideal
+        target_w = int(screen.width() * 0.9)
+        target_h = int(screen.height() * 0.9)
+
+        # Límites razonables
+        min_w, min_h = 1200, 800
+        max_w, max_h = 1600, 1000
+
+        self.resize(
+            max(min_w, min(target_w, max_w)),
+            max(min_h, min(target_h, max_h))
+)
+
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -272,30 +288,73 @@ class GenericFormDialog(QDialog):
         layout = QVBoxLayout(w)
         layout.setSpacing(24)
         layout.setContentsMargins(16, 16, 16, 16)
-        
+
         for field in section_config.get("fields", []):
+
+            # =========================
+            # GROUP (ÁMBITO)
+            # =========================
+            if field.get("type") == "group":
+                group_box = QFrame()
+                group_box.setStyleSheet("""
+                    QFrame {
+                        background-color: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        padding: 16px;
+                    }
+                """)
+
+                v = QVBoxLayout(group_box)
+                v.setSpacing(16)
+
+                # ---- HEADER ----
+                header_layout = QHBoxLayout()
+
+                title = QLabel(field.get("label", ""))
+                title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0f172a;")
+
+                header_layout.addWidget(title)
+                header_layout.addStretch()
+                v.addLayout(header_layout)
+
+                # ---- construir subformularios ----
+                for subfield in field.get("fields", []):
+                    fake_section = {"fields": [subfield]}
+                    sub_form = self._build_section_form(fake_section)
+                    v.addWidget(sub_form)
+
+                layout.addWidget(group_box)
+                continue
+            
+            
+
+
+            # =========================
+            # FIELD NORMAL
+            # =========================
             field_block = QWidget()
             block_layout = QVBoxLayout(field_block)
             block_layout.setContentsMargins(0, 0, 0, 0)
             block_layout.setSpacing(6)
-            
+
             # Label
             label_layout = QHBoxLayout()
             label_text = field.get("label", "")
             if field.get("required", False):
                 label_text += " *"
-            
+
             lbl = QLabel(label_text)
             lbl.setStyleSheet("font-weight: bold; font-size: 14px; color: #1e293b;")
             label_layout.addWidget(lbl)
-            
+
             if field.get("required", False):
                 req_lbl = QLabel("Obligatorio")
                 req_lbl.setStyleSheet("font-size: 11px; color: #dc2626; font-weight: 600;")
                 label_layout.addWidget(req_lbl, 0, Qt.AlignRight)
-                
+
             block_layout.addLayout(label_layout)
-            
+
             # Description
             desc_text = field.get("description", "")
             if desc_text:
@@ -303,67 +362,44 @@ class GenericFormDialog(QDialog):
                 desc_lbl.setStyleSheet("font-size: 12px; color: #64748b; margin-bottom: 2px;")
                 desc_lbl.setWordWrap(True)
                 block_layout.addWidget(desc_lbl)
-            
+
             # Widget
             widget = self._create_input_widget(field)
             key = field["key"]
             self.inputs[key] = widget
-            
+
             # Dependency & Signals
             if "triggers_reload" in field:
-                 self.dependencies[key] = field["triggers_reload"]
-                 if isinstance(widget, QComboBox):
-                     widget.currentIndexChanged.connect(partial(self._on_trigger_changed, key))
-                     
+                self.dependencies[key] = field["triggers_reload"]
+                if isinstance(widget, QComboBox):
+                    widget.currentIndexChanged.connect(
+                        partial(self._on_trigger_changed, key)
+                    )
+
             if "depends_on" in field:
-                 self.dependency_configs[key] = field
-            
-            # Connect Validation
+                self.dependency_configs[key] = field
+
+            # Validation
             if isinstance(widget, QLineEdit):
                 widget.textChanged.connect(self._validate_steps_progress)
             elif isinstance(widget, CheckableComboBox):
                 widget.selectionChanged.connect(self._validate_steps_progress)
             elif isinstance(widget, QComboBox):
                 widget.currentIndexChanged.connect(self._validate_steps_progress)
-            
-            # Visibility Logic
-            if "visible_if" in field:
-                rule = field["visible_if"]
-                source_key = rule["field"]
-                
-                if source_key not in self.visibility_map:
-                    self.visibility_map[source_key] = []
-                    
-                self.visibility_map[source_key].append({
-                    "target_block": field_block,
-                    "rule": rule,
-                    "target_key": key
-                })
-                
-                # Check if we need to connect the source widget (if already created)
-                # It might be in a different section or previous in this loop.
-                # Use a deferred connector or check inputs now.
-                source_widget = self.inputs.get(source_key)
-                if source_widget:
-                    self._connect_visibility_trigger(source_key, source_widget)
-                
-                # Default to hidden until validated
-                field_block.setVisible(False)
-            
+
             block_layout.addWidget(widget)
             layout.addWidget(field_block)
-            
+
         layout.addStretch()
-        
-        # After building section, try connecting pending visibility triggers
-        # (In case source was in this section)
+
+        # Visibility triggers
         for source_key in self.visibility_map.keys():
             if source_key in self.inputs:
-                 self._connect_visibility_trigger(source_key, self.inputs[source_key])
-                 # Trigger initial check
-                 self._check_visibility(source_key)
+                self._connect_visibility_trigger(source_key, self.inputs[source_key])
+                self._check_visibility(source_key)
 
         return w
+    
 
     def _connect_visibility_trigger(self, key, widget):
         # We need to accept whatever arguments the signal emits (e.g. index for combo) and ignore them
@@ -445,6 +481,8 @@ class GenericFormDialog(QDialog):
              inp.setDate(QDate.currentDate())
              inp.setDisplayFormat("dd-MM-yyyy") 
              return inp
+        
+        
 
         if ftype == "text":
             inp = QLineEdit()
@@ -493,7 +531,10 @@ class GenericFormDialog(QDialog):
              
         elif ftype == "file_textarea":
              return FileTextWidget()
-
+         
+        elif ftype == "risk_matrix":
+            return RiskMatrixWidget()
+    
         return QLineEdit()
 
     def _validate_steps_progress(self):
