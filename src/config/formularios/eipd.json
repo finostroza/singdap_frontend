@@ -7,22 +7,18 @@
     "height": 800,
     "sections": [
         {
-            "title": "1. Nivel 1 – Identificación del Tratamiento (RAT)",
+            "title": "0. Nivel 1 – Identificación del Tratamiento (RAT)",
             "description": "Define el tratamiento y justifica la aplicación de una EIPD",
             "fields": [
-                {
-                    "key": "identificacion_rat",
+                 {
+                    "key": "identificacion_rat_catalogo",
                     "label": "Identificación del RAT",
-                    "description": "Descripción ejemplo del tratamiento",
-                    "type": "text",
-                    "required": true
-                },
-                {
-                    "key": "marco_normativo",
-                    "label": "Marco normativo aplicable",
-                    "description": "Descripción ejemplo del tratamiento",
-                    "type": "text",
-                    "required": true
+                    "description": "Seleccione el RAT asociado a esta EIPD.",
+                    "type": "combo",
+                    "source": "/rat/catalogo",
+                    "cache_key": "catalogo_rat_id",
+                    "required": true,
+                    "triggers_reload": []
                 },
                 {
                     "key": "descripcion_general",
@@ -31,24 +27,83 @@
                     "type": "text",
                     "required": true
                 },
-                {
+                 {
                     "key": "resultados_esperados",
                     "label": "Resultados esperados del tratamiento",
-                    "description": "Descripción ejemplo del tratamiento",
+                    "description": "Resultados esperados del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "categorias_datos_rat",
+                    "label": "Categorías de datos personales tratados",
+                    "description": "Identificativos (nombre, RUT), contacto (email, teléfono), datos laborales básicos.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "alcance_analisis",
+                    "label": "Alcance del análisis",
+                    "description": "Alcance del analisis del tratamiento.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "conclusiones_rat",
+                    "label": "Conclusiones del RAT",
+                    "description": "Conclusiones del RAT",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "marco_normativo_rat",
+                    "label": "Marco normativo aplicable",
+                    "description": "Marco normativo del RAT",
                     "type": "text",
                     "required": true
                 },
                 {
                     "key": "finalidades",
                     "label": "Finalidad(es) del tratamiento",
-                    "description": "Descripción ejemplo del tratamiento",
+                    "description": "Finalidad(es) del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                 {
+                    "key": "categorias_datos_inst",
+                    "label": "Titulares de los datos",
+                    "description": "Seleccione la o las opciones que correspondan al tratamiento de datos (Selección multiple).",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/catalogos/rat/categoria-datos-personales",
+                    "cache_key": "catalogo_rat_categoria_datos_personales",
+                    "required": true
+                },
+                {
+                    "key": "origen_recoleccion",
+                    "label": "Origen y recolección de los datos",
+                    "description": "Origen y recolección de los datos",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "Unidades o perfiles con acceso",
+                    "label": "Unidades o perfiles con acceso",
+                    "description": "Unidades o perfiles con acceso",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "Exclusiones del análisis",
+                    "label": "Exclusiones del análisis",
+                    "description": "Exclusiones del análisis",
                     "type": "text",
                     "required": true
                 },
                 {
                     "key": "justificacion",
                     "label": "Justificación aplicación EIPD",
-                    "description": "Descripción ejemplo del tratamiento",
+                    "description": "Justificación de la aplicación de la EIPD",
                     "type": "text",
                     "required": true
                 }
