@@ -161,9 +161,22 @@ class GenericFormDialog(QDialog):
         self.setWindowTitle(title)
         self.setModal(True)
         
-        width = self.config.get("width", 1100)
-        height = self.config.get("height", 800)
-        self.resize(width, height)
+        # Screen-relative sizing
+        screen = QApplication.primaryScreen().availableGeometry()
+        
+        # Default: 90% of screen
+        target_w = int(screen.width() * 0.9)
+        target_h = int(screen.height() * 0.9)
+
+        # Config override (optional, but capped)
+        cfg_w = self.config.get("width")
+        cfg_h = self.config.get("height")
+
+        if cfg_w: target_w = min(int(cfg_w), screen.width())
+        if cfg_h: target_h = min(int(cfg_h), screen.height())
+
+        self.resize(target_w, target_h)
+        
         # Main Dialog Background - Light Gray
         self.setStyleSheet("#genericFormDialog { background-color: #f1f5f9; }")
         
@@ -324,18 +337,28 @@ class GenericFormDialog(QDialog):
                 group_box = QFrame()
                 group_box.setStyleSheet("""
                     QFrame {
-                        background-color: #f8fafc;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 12px;
-                        padding: 16px;
+                        background-color: transparent;
+                        border: none;
+                        border-radius: 0px;
+                        padding: 0px;
+                        margin-top: 16px; 
                     }
                 """)
 
                 v = QVBoxLayout(group_box)
+                v.setContentsMargins(0, 8, 0, 8) # Minimal vertical spacing
                 v.setSpacing(16)
 
                 # ---- HEADER ----
+                # Separator Line
+                line = QFrame()
+                line.setFrameShape(QFrame.HLine)
+                line.setFrameShadow(QFrame.Sunken)
+                line.setStyleSheet("background-color: #e2e8f0; margin-bottom: 8px;")
+                v.addWidget(line)
+
                 header_layout = QHBoxLayout()
+                header_layout.setContentsMargins(0, 0, 0, 0) # No extra margin for header either
 
                 title = QLabel(field.get("label", ""))
                 title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0f172a;")
@@ -348,6 +371,9 @@ class GenericFormDialog(QDialog):
                 for subfield in field.get("fields", []):
                     fake_section = {"fields": [subfield]}
                     sub_form = self._build_section_form(fake_section)
+                    # Force subform to have no margins so it aligns perfectly
+                    if sub_form.layout():
+                         sub_form.layout().setContentsMargins(0, 0, 0, 0)
                     v.addWidget(sub_form)
 
                 layout.addWidget(group_box)
@@ -521,6 +547,24 @@ class GenericFormDialog(QDialog):
                     color: #0f172a;
                 }
                 QLineEdit:focus {
+                    border: 2px solid #2563eb;
+                }
+            """)
+            return inp
+
+        elif ftype == "textarea":
+            inp = QPlainTextEdit()
+            inp.setFixedHeight(100)
+            inp.setStyleSheet("""
+                QPlainTextEdit {
+                    background-color: white; 
+                    border: 1px solid #94a3b8; 
+                    border-radius: 6px; 
+                    padding: 8px;
+                    color: #0f172a;
+                    font-family: inherit;
+                }
+                QPlainTextEdit:focus {
                     border: 2px solid #2563eb;
                 }
             """)
@@ -772,6 +816,8 @@ class GenericFormDialog(QDialog):
             
             if isinstance(widget, QLineEdit):
                 widget.setText(str(value))
+            elif isinstance(widget, QPlainTextEdit):
+                widget.setPlainText(str(value))
             elif isinstance(widget, QDateEdit):
                 # Assume value comes as "yyyy-MM-dd" string from API
                 if value:

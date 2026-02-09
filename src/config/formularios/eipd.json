@@ -3,8 +3,6 @@
   "id_field": "id",
   "title_new": "Nueva Evaluación de Impacto en Protección de Datos (EIPD)",
   "title_edit": "Editar Evaluación de Impacto en Protección de Datos (EIPD)",
-  "width": 2280,
-  "height": 1860,
   "sections": [
     {
       "title": "0. Nivel 1 – Identificación del Tratamiento (RAT)",
@@ -136,10 +134,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -148,10 +158,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
@@ -179,10 +201,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -191,15 +225,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "proporcionabilidad_group",
           "type": "group",
           "label": "Proporcionabilidad",
@@ -222,10 +268,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -234,15 +292,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "calidad_group",
           "type": "group",
           "label": "Calidad",
@@ -265,10 +335,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-               { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -277,15 +359,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "responsabilidad_group",
           "type": "group",
           "label": "Responsabilidad",
@@ -308,10 +402,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -320,15 +426,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "seguridad_group",
           "type": "group",
           "label": "Seguridad",
@@ -351,10 +469,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -363,15 +493,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "transparencia_group",
           "type": "group",
           "label": "Transparencia e Información",
@@ -394,10 +536,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -406,15 +560,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "confidencialidad_group",
           "type": "group",
           "label": "Confidencialidad",
@@ -437,10 +603,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -449,15 +627,27 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
         },
-         {
+        {
           "key": "coordinacion_group",
           "type": "group",
           "label": "Coordinación",
@@ -480,10 +670,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             },
             {
@@ -492,10 +694,22 @@
               "type": "combo_static",
               "required": true,
               "options": [
-                { "id": "despreciable", "nombre": "Despreciable" },
-                { "id": "limitado", "nombre": "Limitado" },
-                { "id": "significativo", "nombre": "Significativo" },
-                { "id": "maximo", "nombre": "Máximo" }
+                {
+                  "id": "despreciable",
+                  "nombre": "Despreciable"
+                },
+                {
+                  "id": "limitado",
+                  "nombre": "Limitado"
+                },
+                {
+                  "id": "significativo",
+                  "nombre": "Significativo"
+                },
+                {
+                  "id": "maximo",
+                  "nombre": "Máximo"
+                }
               ]
             }
           ]
@@ -503,14 +717,14 @@
       ]
     },
     {
-  "title": "2. Matriz de riesgos",
-  "description": "Identificación y evaluación de riesgos transversales.",
-  "fields": [
-    {
-      "key": "matriz_riesgos",
-      "type": "risk_matrix"
+      "title": "2. Matriz de riesgos",
+      "description": "Identificación y evaluación de riesgos transversales.",
+      "fields": [
+        {
+          "key": "matriz_riesgos",
+          "type": "risk_matrix"
+        }
+      ]
     }
-  ]
-}
   ]
 }
