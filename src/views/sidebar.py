@@ -101,12 +101,18 @@ class Sidebar(QWidget):
             "src/resources/icons/file.svg",
         )
 
+        self.btn_trazabilidad = self._nav_button(
+            "Trazabilidad",
+            "src/resources/icons/search_white.svg", # Clean white icon for sidebar
+        )
+
         self.nav_buttons = [
             self.btn_inventario,
             self.btn_mantenedores,
             self.btn_eipd,
             self.btn_roles,
             self.btn_rat,
+            self.btn_trazabilidad,
         ]
 
         # ===============================

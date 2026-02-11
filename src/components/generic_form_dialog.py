@@ -49,21 +49,6 @@ AMBITO_REVERSE_CODES = {v: k for k, v in AMBITO_CODES.items()}
 
 class FilePickerWidget(QWidget):
     def __init__(self, parent=None):
-        screen = QApplication.primaryScreen().availableGeometry()
-
-        # Tamaño ideal
-        target_w = int(screen.width() * 0.9)
-        target_h = int(screen.height() * 0.9)
-
-        # Límites razonables
-        min_w, min_h = 1200, 800
-        max_w, max_h = 1600, 1000
-
-        self.resize(
-            max(min_w, min(target_w, max_w)),
-            max(min_h, min(target_h, max_h))
-)
-
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -159,6 +144,7 @@ class GenericFormDialog(QDialog):
         self.setObjectName("genericFormDialog")
         title = self.config.get("title_edit", "Editar") if self.is_edit else self.config.get("title_new", "Nuevo")
         self.setWindowTitle(title)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
         self.setModal(True)
         
         # Screen-relative sizing

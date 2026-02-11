@@ -12,6 +12,7 @@ from src.views.mantenedores.mantenedores_view import MantenedoresView
 from src.views.usuarios.usuarios_view import UsuariosView
 from src.views.eipd.eipd_view import EipdView
 from src.views.rat.rat_view import RatView
+from src.views.trazabilidad.trazabilidad_view import TrazabilidadView
 
 
 class MainWindow(QMainWindow):
@@ -43,9 +44,9 @@ class MainWindow(QMainWindow):
         self.activos_view = ActivosView()
         self.mantenedores_view = MantenedoresView()
         self.usuarios_view = UsuariosView()
-        self.usuarios_view = UsuariosView()
         self.eipd_view = EipdView()
         self.rat_view = RatView()
+        self.trazabilidad_view = TrazabilidadView()
 
         # Stack indexes
         self.stack.addWidget(self.activos_view)        # 0
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.usuarios_view)       # 2
         self.stack.addWidget(self.eipd_view)           # 3
         self.stack.addWidget(self.rat_view)            # 4
+        self.stack.addWidget(self.trazabilidad_view)   # 5
 
         # ===============================
         # Layout
@@ -90,6 +92,11 @@ class MainWindow(QMainWindow):
         # RAT (sidebar index 4)
         self.sidebar.btn_rat.clicked.connect(
             lambda: self._navigate(4, 4)
+        )
+
+        # Trazabilidad (sidebar index 5)
+        self.sidebar.btn_trazabilidad.clicked.connect(
+            lambda: self._navigate(5, 5)
         )
 
         # ===============================

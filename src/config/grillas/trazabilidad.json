@@ -1,0 +1,57 @@
+{
+    "id": "trazabilidad",
+    "titulo": "Trazabilidad de Consultas",
+    "endpoints": {
+        "listado": "/trazabilidad/consulta"
+    },
+    "campo_id": "api_nombre",
+    "columnas": [
+        {
+            "campo_api": "origen",
+            "etiqueta": "Origen",
+            "visible": true,
+            "ancho": 150,
+            "stretch": false,
+            "orden": 1
+        },
+        {
+            "campo_api": "api_nombre",
+            "etiqueta": "Nombre API",
+            "visible": true,
+            "ancho": null,
+            "stretch": true,
+            "orden": 2
+        },
+        {
+            "campo_api": "tipo",
+            "etiqueta": "Tipo",
+            "visible": true,
+            "ancho": 100,
+            "stretch": false,
+            "orden": 3
+        },
+        {
+            "campo_api": "fecha_consulta",
+            "etiqueta": "Fecha Consulta",
+            "visible": true,
+            "ancho": 180,
+            "stretch": false,
+            "orden": 4
+        }
+    ],
+    "valor_nulo": "—",
+    "buscador": {
+        "habilitado": true,
+        "placeholder": "Ingrese RUN (Ej: 12345678-9)",
+        "param_api": "run"
+    },
+    "acciones": [
+        {
+            "id": "ver_detalle",
+            "icono": "src/resources/icons/file.svg",
+            "tooltip": "Ver Detalle",
+            "tipo": "custom",
+            "orden": 1
+        }
+    ]
+}

@@ -1,11 +1,15 @@
+print("Starting main.py...")
 import sys
+print("Importing PySide6...")
 from PySide6.QtWidgets import QApplication
 
+print("Importing local modules...")
 from src.core.api_client import ApiClient
 from src.services.auth_service import AuthService
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.login_view import LoginView
 from utils import load_styles, icon
+print("All imports completed.")
 
 
 

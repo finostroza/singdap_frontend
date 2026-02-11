@@ -13,7 +13,6 @@ from PySide6.QtGui import QPixmap
 
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.main_window import MainWindow
-from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
 from src.services.logger_service import LoggerService
 from src.workers.jwt_utils import decode_jwt
