@@ -446,7 +446,7 @@ class GenericGridView(QWidget):
             # Data cells
             for col_idx, col_config in enumerate(columns):
                 val = item.get(col_config["campo_api"])
-                text = str(val) if val is not None else null_value
+                text = self._format_cell_value(col_config, val, null_value)
                 item_widget = QTableWidgetItem(text)
                 
                 # Check for specific alignment in config later? 
@@ -470,6 +470,19 @@ class GenericGridView(QWidget):
                 self._add_actions_cell(row, len(columns), record_id)
 
         self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
+
+    def _format_cell_value(self, col_config, value, null_value):
+        if value is None:
+            return null_value
+
+        field = col_config.get("campo_api")
+        if field in {"estado", "estado_eipd"} and isinstance(value, str):
+            state_map = {
+                "EN_EDICION": "EN EDICIÓN",
+            }
+            return state_map.get(value, value.replace("_", " "))
+
+        return str(value)
 
     def _populate_indicators(self, data):
         # Handle list response (take first item if list)

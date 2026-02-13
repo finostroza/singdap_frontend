@@ -40,11 +40,18 @@
             "orden": 4
         },
         {
+            "campo_api": "corresponde_eipd",
+            "etiqueta": "Corresponde EIPD",
+            "visible": true,
+            "ancho": 150,
+            "orden": 5
+        },
+        {
             "campo_api": "fecha_creacion",
             "etiqueta": "Fecha Creación",
             "visible": true,
             "ancho": 150,
-            "orden": 5
+            "orden": 6
         }
     ],
     "indicadores": [

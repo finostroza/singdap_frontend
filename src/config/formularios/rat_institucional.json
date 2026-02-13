@@ -427,17 +427,20 @@
             "description": "Identificación preliminar de riesgos.",
             "fields": [
                 {
-                    "key": "nombre_riesgo",
-                    "label": "Nombre del Riesgo",
-                    "description": "Identificación preliminar de riesgos del tratamiento.",
-                    "type": "textarea",
-                    "required": true
-                },
-                {
-                    "key": "descripcion_riesgo",
-                    "label": "Descripción del Riesgo",
-                    "description": "Identificación preliminar de riesgos del tratamiento.",
-                    "type": "textarea",
+                    "key": "riesgos_identificados",
+                    "label": "Riesgos Identificados",
+                    "description": "Agregue una fila por cada riesgo identificado.",
+                    "type": "editable_table",
+                    "columns": [
+                        {
+                            "key": "nombre_riesgo",
+                            "label": "Nombre del Riesgo"
+                        },
+                        {
+                            "key": "descripcion_riesgo",
+                            "label": "Descripción del Riesgo"
+                        }
+                    ],
                     "required": true
                 }
             ]

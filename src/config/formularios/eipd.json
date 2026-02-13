@@ -22,7 +22,7 @@
           "key": "descripcion_general",
           "label": "Descripción general del tratamiento",
           "description": "Descripción ejemplo del tratamiento",
-          "type": "text",
+          "type": "textarea",
           "required": true
         },
         {
@@ -50,7 +50,7 @@
           "key": "conclusiones_rat",
           "label": "Conclusiones del RAT",
           "description": "Conclusiones del RAT",
-          "type": "text",
+          "type": "textarea",
           "required": true
         },
         {
@@ -64,17 +64,14 @@
           "key": "finalidades",
           "label": "Finalidad(es) del tratamiento",
           "description": "Finalidad(es) del tratamiento",
-          "type": "text",
+          "type": "textarea",
           "required": true
         },
         {
-          "key": "categorias_datos_inst",
+          "key": "titulares_datos",
           "label": "Titulares de los datos",
-          "description": "Seleccione la o las opciones que correspondan al tratamiento de datos (Selección multiple).",
-          "type": "combo",
-          "multiple": true,
-          "source": "/catalogos/rat/categoria-datos-personales",
-          "cache_key": "catalogo_rat_categoria_datos_personales",
+          "description": "Sujetos cuyos datos son tratados.",
+          "type": "text",
           "required": true
         },
         {
@@ -85,14 +82,21 @@
           "required": true
         },
         {
-          "key": "Unidades o perfiles con acceso",
-          "label": "Unidades o perfiles con acceso",
-          "description": "Unidades o perfiles con acceso",
-          "type": "text",
+          "key": "diagrama_flujo_datos_personales",
+          "label": "Diagrama / flujo de datos personales",
+          "description": "Archivo con el flujo de datos personales.",
+          "type": "file",
           "required": true
         },
         {
-          "key": "Exclusiones del análisis",
+          "key": "unidades_perfiles_acceso",
+          "label": "Unidades o perfiles con acceso",
+          "description": "Unidades o perfiles con acceso",
+          "type": "textarea",
+          "required": true
+        },
+        {
+          "key": "exclusiones_analisis",
           "label": "Exclusiones del análisis",
           "description": "Exclusiones del análisis",
           "type": "text",
@@ -102,7 +106,7 @@
           "key": "justificacion",
           "label": "Justificación aplicación EIPD",
           "description": "Justificación de la aplicación de la EIPD",
-          "type": "text",
+          "type": "textarea",
           "required": true
         }
       ]

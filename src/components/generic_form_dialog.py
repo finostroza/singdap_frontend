@@ -6,9 +6,10 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QStackedWidget,
     QLabel, QPushButton, QFrame, QScrollArea, QLineEdit, 
     QComboBox, QFormLayout, QProgressBar, QDateEdit, QFileDialog, 
-    QTextEdit, QPlainTextEdit, QApplication, QSizePolicy
+    QTextEdit, QPlainTextEdit, QApplication, QSizePolicy,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
-from PySide6.QtCore import Qt, QTimer, QThreadPool, QDate
+from PySide6.QtCore import Qt, QTimer, QThreadPool, QDate, Signal
 
 from src.components.risk_matrix_widget import RiskMatrixWidget
 from src.core.api_client import ApiClient
@@ -121,6 +122,164 @@ class FileTextWidget(QWidget):
             # Fallback if single string provided
             self.text_edit.setPlainText(str(data))
 
+
+class EditableTableWidget(QWidget):
+    dataChanged = Signal()
+
+    def __init__(self, field_config, parent=None):
+        super().__init__(parent)
+        self.columns = field_config.get("columns", [])
+        self.column_keys = [col.get("key") for col in self.columns]
+        self._row_meta = []
+        self._loading = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        self.table = QTableWidget(0, len(self.columns))
+        self.table.setHorizontalHeaderLabels(
+            [col.get("label", col.get("key", "")) for col in self.columns]
+        )
+        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(52)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.horizontalHeader().setMinimumSectionSize(140)
+        self.table.setAlternatingRowColors(False)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SingleSelection)
+        self.table.setShowGrid(False)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 6px;
+            }
+            QHeaderView::section {
+                background-color: #f1f5f9;
+                color: #334155;
+                border: none;
+                border-bottom: 1px solid #e2e8f0;
+                padding: 8px;
+                font-weight: 600;
+            }
+        """)
+        layout.addWidget(self.table)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+
+        self.btn_remove = QPushButton("Eliminar fila")
+        self.btn_remove.setObjectName("secondaryButton")
+        self.btn_remove.clicked.connect(self.remove_selected_row)
+
+        self.btn_add = QPushButton("Agregar fila")
+        self.btn_add.setObjectName("primaryButton")
+        self.btn_add.clicked.connect(self.add_empty_row)
+
+        buttons.addWidget(self.btn_remove)
+        buttons.addWidget(self.btn_add)
+        layout.addLayout(buttons)
+        self._buttons_layout = buttons
+
+    def _build_cell_input(self, value=""):
+        inp = QLineEdit()
+        inp.setText("" if value is None else str(value))
+        inp.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #94a3b8;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #0f172a;
+            }
+            QLineEdit:focus {
+                border: 2px solid #2563eb;
+            }
+        """)
+        inp.textChanged.connect(lambda *_: (None if self._loading else self.dataChanged.emit()))
+        return inp
+
+    def add_empty_row(self):
+        self._append_row({}, {})
+        self.dataChanged.emit()
+
+    def _append_row(self, row_data, row_meta):
+        row_idx = self.table.rowCount()
+        self.table.insertRow(row_idx)
+        self._row_meta.append(row_meta or {})
+
+        for col_idx, col in enumerate(self.columns):
+            key = col.get("key")
+            value = row_data.get(key, "")
+            inp = self._build_cell_input(value)
+            self.table.setCellWidget(row_idx, col_idx, inp)
+
+    def remove_selected_row(self):
+        row_idx = self.table.currentRow()
+        if row_idx < 0:
+            row_idx = self.table.rowCount() - 1
+        if row_idx < 0:
+            return
+
+        self.table.removeRow(row_idx)
+        if 0 <= row_idx < len(self._row_meta):
+            self._row_meta.pop(row_idx)
+        self.dataChanged.emit()
+
+    def get_data(self):
+        rows = []
+        for row_idx in range(self.table.rowCount()):
+            row = {}
+            meta = self._row_meta[row_idx] if row_idx < len(self._row_meta) else {}
+            row.update(meta)
+
+            for col_idx, key in enumerate(self.column_keys):
+                inp = self.table.cellWidget(row_idx, col_idx)
+                row[key] = inp.text().strip() if isinstance(inp, QLineEdit) else None
+            rows.append(row)
+        return rows
+
+    def set_data(self, rows):
+        self._loading = True
+        try:
+            self.table.setRowCount(0)
+            self._row_meta = []
+
+            if not isinstance(rows, list):
+                rows = []
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                row_values = {k: row.get(k) for k in self.column_keys}
+                row_meta = {k: v for k, v in row.items() if k not in self.column_keys}
+                self._append_row(row_values, row_meta)
+        finally:
+            self._loading = False
+
+    def has_non_empty_rows(self):
+        for row in self.get_data():
+            for key in self.column_keys:
+                value = row.get(key)
+                if value and str(value).strip():
+                    return True
+        return False
+
+    def set_read_only(self, read_only: bool):
+        self.btn_add.setVisible(not read_only)
+        self.btn_remove.setVisible(not read_only)
+        self.table.setSelectionMode(
+            QTableWidget.NoSelection if read_only else QTableWidget.SingleSelection
+        )
+
+        for row_idx in range(self.table.rowCount()):
+            for col_idx in range(len(self.column_keys)):
+                inp = self.table.cellWidget(row_idx, col_idx)
+                if isinstance(inp, QLineEdit):
+                    inp.setReadOnly(read_only)
+
 class GenericFormDialog(QDialog):
     def __init__(self, config_path, parent=None, record_id=None):
         super().__init__(parent)
@@ -139,6 +298,7 @@ class GenericFormDialog(QDialog):
         self._active_runnables = [] # Keep refs
         self.asset_data = None
         self.pending_loads = 0
+        self._allow_asset_reapply = self.is_edit
 
         # UI Setup
         self.setObjectName("genericFormDialog")
@@ -444,6 +604,8 @@ class GenericFormDialog(QDialog):
                 widget.selectionChanged.connect(self._validate_steps_progress)
             elif isinstance(widget, QComboBox):
                 widget.currentIndexChanged.connect(self._validate_steps_progress)
+            elif isinstance(widget, EditableTableWidget):
+                widget.dataChanged.connect(self._validate_steps_progress)
 
             # EIPD Sync Logic
             # If field key belongs to one of the 9 ambitos, monitor its changes
@@ -654,6 +816,8 @@ class GenericFormDialog(QDialog):
                 QTimer.singleShot(100, lambda p=p: self._sync_risk_matrix(p))
                 
             return w
+        elif ftype == "editable_table":
+            return EditableTableWidget(field)
     
         return QLineEdit()
 
@@ -765,7 +929,15 @@ class GenericFormDialog(QDialog):
                 
             elif isinstance(widget, FileTextWidget):
                 data = widget.get_data()
-                return bool(data["file"].strip())
+                file_ok = bool((data.get("file") or "").strip())
+                text_ok = bool((data.get("text") or "").strip())
+                return file_ok or text_ok
+            elif isinstance(widget, EditableTableWidget):
+                return widget.has_non_empty_rows()
+
+            elif isinstance(widget, QDateEdit):
+                d = widget.date()
+                return d is not None and d.isValid()
         except RuntimeError:
             return False
             
@@ -852,8 +1024,11 @@ class GenericFormDialog(QDialog):
         return flat_data
 
     def _check_finished(self):
-        self.pending_loads -= 1
+        if self.pending_loads > 0:
+            self.pending_loads -= 1
+
         if self.pending_loads <= 0:
+            self._allow_asset_reapply = False
             self.loading_overlay.hide_loading()
             # Initial validation for "New" mode (might be 0/X)
             self._validate_steps_progress()
@@ -885,6 +1060,8 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, FilePickerWidget):
                 widget.setText(str(value))
             elif isinstance(widget, FileTextWidget):
+                widget.set_data(value)
+            elif isinstance(widget, EditableTableWidget):
                 widget.set_data(value)
             elif isinstance(widget, CheckableComboBox):
                 # value puede venir como JSON string o list
@@ -977,13 +1154,14 @@ class GenericFormDialog(QDialog):
         if self.pending_loads == 0:
              self.loading_overlay.hide_loading()
 
-    def _start_combo_loader(self, combo, endpoint, cache_key):
+    def _start_combo_loader(self, combo, endpoint, cache_key, track_pending=True):
         worker = ComboLoaderRunnable(self.catalogo_service.get_catalogo, endpoint, cache_key)
         self._active_runnables.append(worker)
         
         worker.signals.result.connect(partial(self._on_combo_data, combo))
         worker.signals.error.connect(self._on_load_error)
-        worker.signals.finished.connect(self._check_finished)
+        if track_pending:
+            worker.signals.finished.connect(self._check_finished)
         
         self.thread_pool.start(worker)
 
@@ -1015,7 +1193,7 @@ class GenericFormDialog(QDialog):
              if not self.is_edit:
                  combo.setCurrentIndex(-1)
                  
-        if self.asset_data:
+        if self.asset_data and self._allow_asset_reapply:
             # Re-try setting value if data is already here (Edit mode)
             self._try_set_values()
 
@@ -1162,6 +1340,14 @@ class GenericFormDialog(QDialog):
              payload = self._build_generic_payload()
         
         endpoint = self.config.get("endpoint")
+
+        if not self.is_edit:
+            if endpoint == "/activos":
+                payload = self._apply_activo_create_defaults(payload)
+            elif endpoint == "/eipd":
+                payload = self._apply_eipd_create_defaults(payload)
+            else:
+                payload = self._apply_generic_required_defaults(payload)
         
         try:
             if self.is_edit:
@@ -1193,6 +1379,104 @@ class GenericFormDialog(QDialog):
                 parent=self
             ).exec()
 
+    def _first_combo_id(self, key):
+        widget = self.inputs.get(key)
+        if isinstance(widget, QComboBox) and widget.count() > 0:
+            return widget.itemData(0)
+        return None
+
+    def _first_id_from_endpoint(self, endpoint):
+        try:
+            items = self.api.get(endpoint)
+            if isinstance(items, list) and items:
+                first = items[0]
+                if isinstance(first, dict):
+                    return first.get("id")
+        except Exception:
+            return None
+        return None
+
+    def _apply_activo_create_defaults(self, payload):
+        payload["nombre_activo"] = payload.get("nombre_activo") or "Activo sin nombre"
+        payload["responsable"] = payload.get("responsable") or "Sin responsable"
+        payload["rol"] = payload.get("rol") or self._first_combo_id("rol") or "Sin rol"
+
+        fk_defaults = {
+            "tipo_activo_id": "/catalogos/tipo-activo",
+            "estado_activo_id": "/catalogos/estado-activo",
+            "subsecretaria_id": "/setup/subsecretarias",
+        }
+        for key, endpoint in fk_defaults.items():
+            if not payload.get(key):
+                payload[key] = self._first_combo_id(key) or self._first_id_from_endpoint(endpoint)
+
+        payload["creado_por_usuario_id"] = (
+            payload.get("creado_por_usuario_id")
+            or "e13f156d-4bde-41fe-9dfa-9b5a5478d257"
+        )
+        return payload
+
+    def _apply_eipd_create_defaults(self, payload):
+        if not payload.get("rat_id"):
+            payload["rat_id"] = (
+                self._first_combo_id("identificacion_rat_catalogo")
+                or self._first_id_from_endpoint("/rat/catalogo")
+            )
+        return payload
+
+    def _is_missing_value(self, value):
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return not value.strip()
+        if isinstance(value, list):
+            return len(value) == 0
+        return False
+
+    def _iter_fields(self, fields):
+        for field in fields or []:
+            if field.get("type") == "group":
+                yield from self._iter_fields(field.get("fields", []))
+            else:
+                yield field
+
+    def _apply_generic_required_defaults(self, payload):
+        sections = self.config.get("sections", [])
+        for section in sections:
+            for field in self._iter_fields(section.get("fields", [])):
+                if not field.get("required", False):
+                    continue
+
+                key = field.get("key")
+                if not key:
+                    continue
+
+                current = payload.get(key)
+                if not self._is_missing_value(current):
+                    continue
+
+                ftype = field.get("type", "text")
+                default_value = None
+
+                if ftype in ["combo", "combo_static"]:
+                    default_value = self._first_combo_id(key)
+                    if default_value is None and field.get("source"):
+                        default_value = self._first_id_from_endpoint(field["source"])
+                    if default_value is None and field.get("options"):
+                        opts = field.get("options") or []
+                        if opts:
+                            default_value = opts[0].get("id")
+                elif ftype in ["text", "textarea"]:
+                    default_value = "Pendiente"
+                elif ftype == "file":
+                    default_value = "pendiente"
+                elif ftype == "file_textarea":
+                    default_value = {"file": "pendiente", "text": "pendiente"}
+
+                payload[key] = default_value
+
+        return payload
+
     def _build_generic_payload(self):
         payload = {}
         for key, widget in self.inputs.items():
@@ -1208,7 +1492,9 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, FileTextWidget):
                  val = widget.get_data()
             elif isinstance(widget, RiskMatrixWidget):
-                 val = widget.get_data()
+                val = widget.get_data()
+            elif isinstance(widget, EditableTableWidget):
+                val = widget.get_data()
             elif isinstance(widget, QComboBox):
                 val = widget.currentData()
             

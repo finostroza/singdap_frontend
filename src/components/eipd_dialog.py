@@ -4,12 +4,14 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QComboBox,
     QLineEdit,
+    QPlainTextEdit,
     QLabel,
     QTableWidgetItem
 )
 from PySide6.QtCore import Qt, QTimer
 
 from src.components.generic_form_dialog import GenericFormDialog
+from src.components.custom_inputs import CheckableComboBox
 from src.workers.api_worker import ApiWorker
 
 
@@ -22,6 +24,7 @@ class EipdDialog(GenericFormDialog):
         target_id = eipd_id or kwargs.get("id") or kwargs.get("record_id")
 
         super().__init__(str(config_path), parent=parent, record_id=target_id)
+        self._catalog_label_cache = {}
 
         # Nivel en tiempo real (Section 1 labels)
         QTimer.singleShot(100, self._bind_niveles_en_tiempo_real)
@@ -123,23 +126,188 @@ class EipdDialog(GenericFormDialog):
     # ------------------------------------------------------------------
     # Apply RAT data (SIN ROMPER NADA)
     # ------------------------------------------------------------------
-    def _apply_rat_data(self, rat: dict):
-        mapping = {
+    def _get_catalog_labels(self, endpoint: str, cache_key: str) -> dict[str, str]:
+        cache_id = f"{endpoint}::{cache_key}"
+        if cache_id in self._catalog_label_cache:
+            return self._catalog_label_cache[cache_id]
+
+        labels = {}
+        try:
+            rows = self.catalogo_service.get_catalogo(endpoint, cache_key) or []
+            labels = {
+                str(item.get("id")): item.get("nombre", "")
+                for item in rows
+                if item.get("id") is not None
+            }
+        except Exception:
+            labels = {}
+
+        self._catalog_label_cache[cache_id] = labels
+        return labels
+
+    def _map_catalog_values(self, values, endpoint: str, cache_key: str):
+        labels = self._get_catalog_labels(endpoint, cache_key)
+
+        if isinstance(values, list):
+            return [labels.get(str(v), str(v)) for v in values]
+
+        if values is None:
+            return None
+
+        return labels.get(str(values), str(values))
+
+    def _first_non_empty(self, *values):
+        for value in values:
+            if value is None:
+                continue
+            if isinstance(value, str) and not value.strip():
+                continue
+            if isinstance(value, list) and len(value) == 0:
+                continue
+            return value
+        return None
+
+    def _resolve_eipd_value(self, eipd_key: str, rat: dict):
+        if eipd_key == "categorias_datos_rat":
+            tipos_datos = self._map_catalog_values(
+                rat.get("tipos_datos"),
+                "/catalogos/rat/tipo-datos",
+                "catalogo_rat_tipo_datos"
+            )
+            if tipos_datos:
+                return tipos_datos
+
+            categorias = self._first_non_empty(
+                rat.get("categorias_datos_personales"),
+                rat.get("categorias_datos_inst"),
+            )
+            return self._map_catalog_values(
+                categorias,
+                "/catalogos/rat/categoria-datos-personales",
+                "catalogo_rat_categoria_datos_personales"
+            )
+
+        if eipd_key == "marco_normativo_rat":
+            nombre_mecanismo = rat.get("nombre_mecanismo")
+            if nombre_mecanismo:
+                return nombre_mecanismo
+            return self._map_catalog_values(
+                rat.get("mecanismo_habilitante"),
+                "/catalogos/marco-habilitante",
+                "catalogo_marco_habilitante_rat"
+            )
+
+        if eipd_key == "origen_recoleccion":
+            fuente = self._first_non_empty(rat.get("fuente_datos"))
+            medio_origen = self._first_non_empty(rat.get("medio_recoleccion_origen"))
+            forma = self._first_non_empty(rat.get("forma_recoleccion"))
+
+            # Prioriza la etapa 5 del RAT institucional
+            partes_origen = [p for p in [fuente, medio_origen, forma] if p]
+            if partes_origen:
+                return partes_origen
+
+            origen_raw = self._first_non_empty(
+                rat.get("origen_datos"),
+                rat.get("origen_datos_titulares"),
+            )
+            medio_raw = self._first_non_empty(
+                rat.get("medio_recoleccion"),
+                rat.get("medio_recoleccion_titulares"),
+            )
+            origen = self._map_catalog_values(
+                origen_raw,
+                "/catalogos/rat/origen-datos",
+                "catalogo_rat_origen_datos"
+            )
+            medio = self._map_catalog_values(
+                medio_raw,
+                "/catalogos/rat/medio-recoleccion",
+                "catalogo_rat_medio_recoleccion"
+            )
+            partes_fallback = [p for p in [origen, medio] if p]
+            if partes_fallback:
+                return partes_fallback
+            return None
+
+        if eipd_key == "conclusiones_rat":
+            return rat.get("sintesis_analisis")
+
+        if eipd_key == "titulares_datos":
+            poblaciones = self._map_catalog_values(
+                self._first_non_empty(
+                    rat.get("poblaciones_vulnerables_inst"),
+                    rat.get("poblaciones_vulnerables"),
+                ),
+                "/catalogos/rat/poblacion-especial",
+                "catalogo_rat_poblacion-especial"
+            )
+            poblaciones_otro = rat.get("poblaciones_vulnerables_otro")
+
+            partes = []
+            if isinstance(poblaciones, list):
+                partes.extend([str(p) for p in poblaciones if p])
+            elif poblaciones:
+                partes.append(str(poblaciones))
+            if poblaciones_otro:
+                partes.append(str(poblaciones_otro))
+
+            if partes:
+                return partes
+            return None
+
+        rat_key_map = {
             "descripcion_general": "descripcion_alcance",
             "resultados_esperados": "resultados_esperados",
-            "categorias_datos_rat": "categorias_datos_personales",
             "alcance_analisis": "sintesis_analisis",
-            "conclusiones_rat": "conclusiones_rat",
-            "marco_normativo_rat": "mecanismo_habilitante",
-            "finalidades": "finalidad_tratamiento",
-            "categorias_datos_inst": "categorias_datos_inst",
-            "origen_recoleccion": "origen_datos",
+            "exclusiones_analisis": "exclusiones_analisis",
             "justificacion": "justificacion",
         }
 
-        for eipd_key, rat_key in mapping.items():
+        if eipd_key == "finalidades":
+            return self._first_non_empty(
+                rat.get("finalidad_tratamiento"),
+                rat.get("finalidad_tratamiento_inst"),
+                rat.get("finalidad_principal_ia"),
+            )
+
+        rat_key = rat_key_map.get(eipd_key)
+        if not rat_key:
+            return None
+        return rat.get(rat_key)
+
+    def _apply_rat_data(self, rat: dict):
+        readonly_keys = {
+            "marco_normativo_rat",
+            "descripcion_general",
+            "finalidades",
+            "resultados_esperados",
+            "titulares_datos",
+            "categorias_datos_rat",
+            "origen_recoleccion",
+            "alcance_analisis",
+            "exclusiones_analisis",
+            "conclusiones_rat",
+            "justificacion",
+        }
+
+        eipd_keys = [
+            "descripcion_general",
+            "resultados_esperados",
+            "categorias_datos_rat",
+            "alcance_analisis",
+            "conclusiones_rat",
+            "marco_normativo_rat",
+            "finalidades",
+            "titulares_datos",
+            "origen_recoleccion",
+            "exclusiones_analisis",
+            "justificacion",
+        ]
+
+        for eipd_key in eipd_keys:
             widget = self.inputs.get(eipd_key)
-            value = rat.get(rat_key)
+            value = self._resolve_eipd_value(eipd_key, rat)
 
             if not widget:
                 continue
@@ -151,8 +319,26 @@ class EipdDialog(GenericFormDialog):
                     widget.setText(json.dumps(value, ensure_ascii=False))
                 elif value is not None:
                     widget.setText(str(value))
-                widget.setReadOnly(True)
+                widget.setReadOnly(eipd_key in readonly_keys)
+
+            elif isinstance(widget, QPlainTextEdit):
+                if isinstance(value, list):
+                    widget.setPlainText(", ".join(map(str, value)))
+                elif isinstance(value, dict):
+                    widget.setPlainText(json.dumps(value, ensure_ascii=False))
+                elif value is not None:
+                    widget.setPlainText(str(value))
+                widget.setReadOnly(eipd_key in readonly_keys)
+
+            elif isinstance(widget, CheckableComboBox):
+                if isinstance(value, str):
+                    try:
+                        value = json.loads(value)
+                    except Exception:
+                        value = []
+                if not isinstance(value, list):
+                    value = []
+                widget.setCurrentData(value)
 
             elif isinstance(widget, QComboBox):
                 self._set_combo_value(widget, value)
-                widget.setEnabled(False)
