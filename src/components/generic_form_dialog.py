@@ -123,6 +123,97 @@ class FileTextWidget(QWidget):
             self.text_edit.setPlainText(str(data))
 
 
+class ComboTextWidget(QWidget):
+    """A combo dropdown (single or multiple) + optional free text field below."""
+    def __init__(self, field_config=None, parent=None):
+        super().__init__(parent)
+        field_config = field_config or {}
+        self._is_multiple = field_config.get("multiple", False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        # Combo
+        if self._is_multiple:
+            self.combo = CheckableComboBox()
+        else:
+            self.combo = QComboBox()
+            self.combo.setPlaceholderText("Seleccione...")
+
+        # Static options
+        if field_config.get("combo_static_options"):
+            for opt in field_config["combo_static_options"]:
+                self.combo.addItem(opt["nombre"], opt.get("id", opt["nombre"]))
+            if not self._is_multiple:
+                self.combo.setCurrentIndex(-1)
+
+        layout.addWidget(self.combo)
+
+        # Text field
+        self.text_input = QLineEdit()
+        self.text_input.setPlaceholderText("Especifique otro...")
+        self.text_input.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #94a3b8;
+                border-radius: 6px;
+                padding: 4px 8px;
+                color: #0f172a;
+            }
+            QLineEdit:focus {
+                border: 2px solid #2563eb;
+            }
+        """)
+        layout.addWidget(self.text_input)
+
+    # --- API for GenericFormDialog ---
+    def get_combo_value(self):
+        if self._is_multiple:
+            return self.combo.currentData()  # list of IDs
+        return self.combo.currentData()  # single value
+
+    def get_text_value(self):
+        return self.text_input.text().strip()
+
+    def get_data(self):
+        return {
+            "combo": self.get_combo_value(),
+            "text": self.get_text_value()
+        }
+
+    def set_data(self, data):
+        if not data:
+            return
+        if isinstance(data, dict):
+            combo_val = data.get("combo")
+            text_val = data.get("text", "")
+        else:
+            # Legacy: plain string stored
+            combo_val = None
+            text_val = str(data)
+
+        if combo_val is not None:
+            if self._is_multiple and isinstance(self.combo, CheckableComboBox):
+                self.combo.setCurrentData(combo_val if isinstance(combo_val, list) else [combo_val])
+            elif isinstance(self.combo, QComboBox):
+                for i in range(self.combo.count()):
+                    if str(self.combo.itemData(i)) == str(combo_val):
+                        self.combo.setCurrentIndex(i)
+                        break
+        if text_val:
+            self.text_input.setText(text_val)
+
+    def is_filled(self):
+        """At least the combo or the text has a value."""
+        if self._is_multiple:
+            combo_ok = bool(self.combo.currentData())
+        else:
+            combo_ok = self.combo.currentIndex() != -1
+        text_ok = bool(self.text_input.text().strip())
+        return combo_ok or text_ok
+
+
 class EditableTableWidget(QWidget):
     dataChanged = Signal()
 
@@ -464,6 +555,9 @@ class GenericFormDialog(QDialog):
             
         content_layout.addWidget(self.stack)
         
+        # Setup visibility connections after all fields are created
+        self._setup_visibility_connections()
+        
         body_layout.addWidget(content_frame, 1) # Stretch Content
         
         main_layout.addLayout(body_layout, 1)
@@ -638,18 +732,35 @@ class GenericFormDialog(QDialog):
                              widget.currentIndexChanged.connect(lambda *args, p=prefix: self._sync_risk_matrix(p))
 
             block_layout.addWidget(widget)
+
+            # visible_when: conditional visibility from JSON config
+            vis_rule = field.get("visible_when")
+            if vis_rule:
+                source_key = vis_rule.get("field")
+                if source_key:
+                    field_block.setVisible(False)  # hidden by default
+                    if source_key not in self.visibility_map:
+                        self.visibility_map[source_key] = []
+                    self.visibility_map[source_key].append({
+                        "target_block": field_block,
+                        "rule": vis_rule,
+                        "key": key
+                    })
+
             layout.addWidget(field_block)
 
         layout.addStretch()
 
-        # Visibility triggers
+
+
+        return w
+    
+
+    def _setup_visibility_connections(self):
         for source_key in self.visibility_map.keys():
             if source_key in self.inputs:
                 self._connect_visibility_trigger(source_key, self.inputs[source_key])
                 self._check_visibility(source_key)
-
-        return w
-    
 
     def _connect_visibility_trigger(self, key, widget):
         # We need to accept whatever arguments the signal emits (e.g. index for combo) and ignore them
@@ -662,13 +773,13 @@ class GenericFormDialog(QDialog):
             
             if is_checkable:
                  if hasattr(widget, "selectionChanged"):
-                     widget.selectionChanged.connect(lambda *args: self._check_visibility(key), Qt.UniqueConnection)
+                     widget.selectionChanged.connect(lambda *args: self._check_visibility(key))
             
             elif isinstance(widget, QComboBox):
-                 widget.currentIndexChanged.connect(lambda *args: self._check_visibility(key), Qt.UniqueConnection)
+                 widget.currentIndexChanged.connect(lambda *args: self._check_visibility(key))
             
             elif isinstance(widget, QLineEdit):
-                 widget.textChanged.connect(lambda *args: self._check_visibility(key), Qt.UniqueConnection)
+                 widget.textChanged.connect(lambda *args: self._check_visibility(key))
                 
         except (TypeError, RuntimeError):
             pass # Already connected, connection failed, or object deleted
@@ -705,11 +816,33 @@ class GenericFormDialog(QDialog):
                 # Check condition
                 match = False
                 req_val = rule.get("value")
+                contains_val = rule.get("contains")
                 
-                if isinstance(val, list): # Checkable returns list
-                     if req_val in val: match = True
-                else:
-                     if str(val) == str(req_val): match = True
+                if contains_val:
+                    # "contains" mode: check if a multi-select list contains a display name
+                    if isinstance(val, list):
+                        # val is list of IDs; check display names in the source widget
+                        source_widget_local = self.inputs.get(source_key)
+                        if source_widget_local and hasattr(source_widget_local, 'model'):
+                            model = source_widget_local.model()
+                            for i in range(model.rowCount()):
+                                item = model.item(i)
+                                if item and item.checkState() == Qt.Checked:
+                                    if contains_val.lower() in item.text().lower():
+                                        match = True
+                                        break
+                        else:
+                            match = str(contains_val) in str(val)
+                    else:
+                        if isinstance(source_widget, QComboBox) and not is_checkable:
+                             match = str(contains_val).lower() in source_widget.currentText().lower()
+                        else:
+                             match = str(contains_val).lower() in str(val).lower()
+                elif req_val is not None:
+                    if isinstance(val, list): # Checkable returns list
+                         if req_val in val: match = True
+                    else:
+                         if str(val) == str(req_val): match = True
                 
                 target_block.setVisible(match)
                 
@@ -818,6 +951,8 @@ class GenericFormDialog(QDialog):
             return w
         elif ftype == "editable_table":
             return EditableTableWidget(field)
+        elif ftype == "combo_text":
+            return ComboTextWidget(field_config=field)
     
         return QLineEdit()
 
@@ -903,6 +1038,34 @@ class GenericFormDialog(QDialog):
             except RuntimeError:
                 pass
 
+    def _get_missing_required_fields(self):
+        """Returns a list of (label, section_title) for missing required fields that are currently visible."""
+        missing = []
+        sections = self.config.get("sections", [])
+        
+        for i, section in enumerate(sections):
+            section_title = section.get("title", f"Sección {i+1}")
+            page_widget = self.stack.widget(i)
+            
+            for field in section.get("fields", []):
+                if field.get("required", False):
+                    key = field["key"]
+                    widget = self.inputs.get(key)
+                    label = field.get("label", key)
+                    
+                    try:
+                        # Only validate if the field is visible (logic-driven visibility)
+                        if not widget or not page_widget:
+                            continue
+                        if not widget.isVisibleTo(page_widget):
+                            continue
+                            
+                        if not self._is_field_filled(widget, field):
+                            missing.append(f"- {label} ({section_title})")
+                    except RuntimeError:
+                        continue
+        return missing
+
     def _is_field_filled(self, widget, field):
         if not widget: return False
         
@@ -934,6 +1097,8 @@ class GenericFormDialog(QDialog):
                 return file_ok or text_ok
             elif isinstance(widget, EditableTableWidget):
                 return widget.has_non_empty_rows()
+            elif isinstance(widget, ComboTextWidget):
+                return widget.is_filled()
 
             elif isinstance(widget, QDateEdit):
                 d = widget.date()
@@ -1089,6 +1254,9 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, RiskMatrixWidget):
                 widget.set_data(value)
 
+            elif isinstance(widget, ComboTextWidget):
+                widget.set_data(value)
+
             elif isinstance(widget, QComboBox):
                 self._set_combo_value(widget, value)
                 
@@ -1131,8 +1299,16 @@ class GenericFormDialog(QDialog):
         # Identify combos to load from config
         combos_to_load = []
         for section in self.config.get("sections", []):
-            for field in section.get("fields", []):
-                if field.get("type") == "combo" and field.get("source") and not field.get("depends_on"):
+            for field in self._iter_fields(section.get("fields", [])):
+                ftype = field.get("type", "")
+                if ftype == "combo_text" and field.get("source") and not field.get("depends_on"):
+                    key = field["key"]
+                    ct_widget = self.inputs.get(key)
+                    if isinstance(ct_widget, ComboTextWidget):
+                        endpoint = field["source"]
+                        cache_key = field.get("cache_key", f"cache_{key}")
+                        combos_to_load.append((ct_widget.combo, endpoint, cache_key))
+                elif ftype == "combo" and field.get("source") and not field.get("depends_on"):
                     key = field["key"]
                     widget = self.inputs.get(key)
                     endpoint = field["source"]
@@ -1341,6 +1517,20 @@ class GenericFormDialog(QDialog):
         
         endpoint = self.config.get("endpoint")
 
+        # 🛡️ Mandatory Validation for Inventario (/activos)
+        if endpoint == "/activos":
+            missing = self._get_missing_required_fields()
+            if missing:
+                LoggerService().log_error("Validación fallida: campos obligatorios faltantes", None)
+                AlertDialog(
+                    title="Campos Obligatorios",
+                    message="Por favor complete los siguientes campos requeridos antes de guardar:\n\n" + "\n".join(missing),
+                    icon_path="src/resources/icons/alert_error.svg",
+                    confirm_text="Entendido",
+                    parent=self
+                ).exec()
+                return # Abort submission
+
         if not self.is_edit:
             if endpoint == "/activos":
                 payload = self._apply_activo_create_defaults(payload)
@@ -1494,6 +1684,8 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, RiskMatrixWidget):
                 val = widget.get_data()
             elif isinstance(widget, EditableTableWidget):
+                val = widget.get_data()
+            elif isinstance(widget, ComboTextWidget):
                 val = widget.get_data()
             elif isinstance(widget, QComboBox):
                 val = widget.currentData()
