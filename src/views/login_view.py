@@ -68,7 +68,7 @@ class LoginView(QWidget):
         # Inputs
         # ===============================
         self.user_input = QLineEdit()
-        self.user_input.setPlaceholderText("Email")
+        self.user_input.setPlaceholderText("Rut")
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Contraseña")

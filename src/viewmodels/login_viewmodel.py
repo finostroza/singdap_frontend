@@ -12,11 +12,11 @@ class LoginViewModel(QObject):
         super().__init__()
         self.auth_service = auth_service
 
-    def login(self, email: str, password: str):
+    def login(self, rut: str, password: str):
         self.loading_changed.emit(True)
 
         def do_login():
-            return self.auth_service.login(email, password)
+            return self.auth_service.login(rut, password)
 
         self.worker = ApiWorker(do_login)
         self.worker.finished.connect(self._on_login_success)
