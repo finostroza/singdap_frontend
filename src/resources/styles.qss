@@ -694,3 +694,211 @@ QFrame#packCard {
     border-radius: 8px;
     padding: 8px;
 }
+
+QLineEdit#usersSearch {
+    border: 1px solid #D7DFE8;
+    border-radius: 16px;
+    padding: 10px 14px;
+    min-height: 20px;
+    color: #374151;
+}
+
+QLineEdit#usersSearch:focus {
+    border: 2px solid #006FB3;
+}
+
+QListWidget#userListModern {
+    border: none;
+    background: transparent;
+}
+
+QFrame#userCard,
+QFrame#userCardSelected {
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+}
+
+QFrame#userCard {
+    background: #FFFFFF;
+}
+
+QFrame#userCardSelected {
+    background: #062048;
+    border: 1px solid #062048;
+}
+
+QLabel#userName,
+QLabel#userNameSelected {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+QLabel#userName {
+    color: #111827;
+}
+
+QLabel#userNameSelected {
+    color: #FFFFFF;
+}
+
+QLabel#userText,
+QLabel#userTextSelected {
+    font-size: 12px;
+}
+
+QLabel#userText {
+    color: #6B7280;
+}
+
+QLabel#userTextSelected {
+    color: #D7E3F5;
+}
+
+QLabel#statusBadgeActive,
+QLabel#statusBadgeInactive,
+QPushButton#statusBadgeActive,
+QPushButton#statusBadgeInactive {
+    border-radius: 14px;
+    padding: 3px 9px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+QLabel#statusBadgeActive {
+    background: #D1FAE5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+}
+
+QLabel#statusBadgeInactive {
+    background: #FCE7F3;
+    color: #BE185D;
+    border: 1px solid #FBCFE8;
+}
+
+QPushButton#statusBadgeActive {
+    background: #D1FAE5;
+    color: #047857;
+    border: 1px solid #A7F3D0;
+}
+
+QPushButton#statusBadgeInactive {
+    background: #FCE7F3;
+    color: #BE185D;
+    border: 1px solid #FBCFE8;
+}
+
+QPushButton#statusBadgeActive:hover {
+    background: #BBF7D0;
+}
+
+QPushButton#statusBadgeInactive:hover {
+    background: #FBCFE8;
+}
+
+QLabel#matrixHint {
+    color: #6B7280;
+    font-size: 12px;
+}
+
+QTableWidget#permissionTable {
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    background: #FFFFFF;
+    gridline-color: #EEF1F4;
+}
+
+QTableWidget#permissionTable QTableCornerButton::section {
+    background: #F8FAFC;
+    border: none;
+}
+
+QTableWidget#permissionTable::item {
+    padding: 10px;
+}
+
+QTableWidget#permissionTable QHeaderView::section {
+    background: #F8FAFC;
+    border: none;
+    border-bottom: 1px solid #E5E7EB;
+    color: #6B7280;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px;
+}
+
+/* Grid toolbar */
+QLineEdit#gridSearchInput {
+    border: 1px solid #DCE3EA;
+    border-radius: 12px;
+    padding: 8px 12px;
+    min-height: 18px;
+    background: #FFFFFF;
+}
+
+QLineEdit#gridSearchInput:focus {
+    border: 2px solid #0072CE;
+}
+
+QComboBox#gridToolbarCombo {
+    border: 1px solid #DCE3EA;
+    border-radius: 12px;
+    padding: 7px 30px 7px 10px;
+    min-height: 18px;
+    background: #FFFFFF;
+}
+
+QPushButton#gridToolbarButton {
+    background-color: #F8FAFC;
+    color: #334155;
+    border: 1px solid #DCE3EA;
+    border-radius: 10px;
+    padding: 8px 26px 8px 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+QPushButton#gridToolbarButton:hover {
+    background-color: #EEF3F8;
+}
+
+QPushButton#gridToolbarButton::menu-indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    right: 8px;
+}
+
+QPushButton#gridToolbarActionButton {
+    background-color: #F8FAFC;
+    color: #334155;
+    border: 1px solid #DCE3EA;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-weight: 600;
+    text-align: center;
+}
+
+QPushButton#gridToolbarActionButton:hover {
+    background-color: #EEF3F8;
+}
+
+QPushButton#gridExportButton {
+    background-color: #0F766E;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 26px 9px 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+QPushButton#gridExportButton:hover {
+    background-color: #0D9488;
+}
+
+QPushButton#gridExportButton::menu-indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    right: 8px;
+}

@@ -109,3 +109,12 @@ class ApiClient:
         response = requests.put(url, json=payload, headers=self._headers())
         response.raise_for_status()
         return response.json()
+
+    # ===============================
+    # PATCH
+    # ===============================
+    def patch(self, endpoint: str, payload: dict):
+        url = f"{self.base_url}{endpoint}"
+        response = requests.patch(url, json=payload, headers=self._headers())
+        response.raise_for_status()
+        return response.json()

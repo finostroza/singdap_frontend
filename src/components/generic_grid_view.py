@@ -5,12 +5,13 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QLineEdit, QComboBox,
-    QFrame, QHeaderView, QMenu, QFileDialog
+    QFrame, QHeaderView, QMenu, QFileDialog,
+    QAbstractScrollArea, QAbstractItemView
 )
-from PySide6.QtGui import QTextDocument
+from PySide6.QtGui import QTextDocument, QActionGroup
 from PySide6.QtPrintSupport import QPrinter
 import csv
-from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool
+from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool, QPoint
 
 from src.core.api_client import ApiClient
 from src.services.catalogo_service import CatalogoService
@@ -42,10 +43,14 @@ class GenericGridView(QWidget):
         self.current_page = 1
         self.page_size = self.config.get("paginacion", {}).get("tamano_pagina", 10)
         self.total_pages = 1
-        
+        self.row_height = 44
+        self.column_filters = {}
+        self._raw_items = []
+
         # UI Elements Storage (for later access)
         self.filters_ui = {} # Map filter_id -> QComboBox
         self.indicators_ui = {} # Map indicator field -> QLabel value
+        self.columns = sorted(self.config["columnas"], key=lambda x: x.get("orden", 0))
         
         # Build UI
         self._build_ui()
@@ -136,73 +141,77 @@ class GenericGridView(QWidget):
         
         # 3. Filters & Actions Bar
         filters_layout = QHBoxLayout()
+        filters_layout.setSpacing(10)
         
-        # Search
+        # Search (always visible as grid standard)
         search_config = self.config.get("buscador", {})
-        if search_config.get("habilitado"):
-            self.search_input = QLineEdit()
-            self.search_input.setPlaceholderText(search_config.get("placeholder", "Buscar..."))
-            self.search_input.returnPressed.connect(self._on_search)
+        self.search_input = QLineEdit()
+        self.search_input.setObjectName("gridSearchInput")
+        self.search_input.setPlaceholderText(search_config.get("placeholder", "Buscar en la grilla..."))
+        self.search_input.returnPressed.connect(self._on_search)
+        self.search_input.setMinimumWidth(150)
+        self.search_input.setMaximumWidth(200)
+        
+        search_action = self.search_input.addAction(
+            icon("src/resources/icons/search.svg"),
+            QLineEdit.TrailingPosition
+        )
+        search_action.setToolTip("Buscar")
+        search_action.triggered.connect(self._on_search)
+        
+        filters_layout.addWidget(self.search_input)
+
+        # Column filter (standard)
+        self.column_filter_combo = QComboBox()
+        self.column_filter_combo.setObjectName("gridToolbarCombo")
+        self.column_filter_combo.setMinimumWidth(150)
+        self.column_filter_combo.setMaximumWidth(180)
+        self.column_filter_combo.addItem("Filtrar en: Todas las columnas", "__all__")
+        for col in self.columns:
+            if col.get("visible", True):
+                self.column_filter_combo.addItem(
+                    f"Filtrar en: {col['etiqueta']}",
+                    col["campo_api"],
+                )
+        self.column_filter_combo.currentIndexChanged.connect(self._on_search)
+        filters_layout.addWidget(self.column_filter_combo)
+
+        # Refresh
+        self.refresh_btn = QPushButton("Actualizar")
+        self.refresh_btn.setObjectName("gridToolbarActionButton")
+        self.refresh_btn.clicked.connect(self._reload_all)
+        filters_layout.addWidget(self.refresh_btn)
             
-            search_action = self.search_input.addAction(
-                icon("src/resources/icons/search.svg"),
-                QLineEdit.TrailingPosition
-            )
-            search_action.setToolTip("Buscar")
-            search_action.triggered.connect(self._on_search)
-            
-            filters_layout.addWidget(self.search_input)
-            
-        # Dynamic Combos
-        if self.config.get("filtros"):
-            sorted_filters = sorted(self.config["filtros"], key=lambda x: x.get("orden", 0))
-            for f in sorted_filters:
-                combo = QComboBox()
-                # Store reference
-                self.filters_ui[f["id"]] = combo
-                
-                # Apply width if configured
-                if f.get("ancho"):
-                    combo.setFixedWidth(f["ancho"])
-                else:
-                    # Default min width to avoid extreme truncation
-                    combo.setMinimumWidth(150)
-                    
-                combo.currentIndexChanged.connect(self._on_filter_change)
-                filters_layout.addWidget(combo)
-                
         # Clear Filters Button
         self.clear_filters_btn = QPushButton("Limpiar filtros")
-        self.clear_filters_btn.setObjectName("secondaryButton")
+        self.clear_filters_btn.setObjectName("gridToolbarActionButton")
         self.clear_filters_btn.clicked.connect(self._clear_filters)
         filters_layout.addWidget(self.clear_filters_btn)
         
         filters_layout.addStretch()
         
-        # Botón de Exportación
-        self.export_btn = QPushButton("Exportar Grilla")
-        # Igualar dimensiones del botón primario pero conservando un color neutral
-        self.export_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f3f4f6; 
-                color: #374151;
-                border: 1px solid #d1d5db;
-                border-radius: 10px;
-                padding: 10px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #e5e7eb;
-            }
-        """)
+        # View Controls (standard)
+        self.columns_btn = QPushButton("Columnas")
+        self.columns_btn.setObjectName("gridToolbarButton")
+        self.columns_menu = QMenu(self)
+        self.column_toggle_actions = {}
+        for i, col in enumerate(self.columns):
+            action = self.columns_menu.addAction(col["etiqueta"])
+            action.setCheckable(True)
+            action.setChecked(col.get("visible", True))
+            action.toggled.connect(partial(self._toggle_column_visibility, i))
+            self.column_toggle_actions[i] = action
+        self.columns_btn.setMenu(self.columns_menu)
+        filters_layout.addWidget(self.columns_btn)
 
+        # Export button (penultimate)
+        self.export_btn = QPushButton("Exportar Grilla")
+        self.export_btn.setObjectName("gridExportButton")
         export_menu = QMenu(self)
         csv_action = export_menu.addAction("Exportar a CSV")
         pdf_action = export_menu.addAction("Exportar a PDF")
-        
         csv_action.triggered.connect(self._export_csv)
         pdf_action.triggered.connect(self._export_pdf)
-        
         self.export_btn.setMenu(export_menu)
         filters_layout.addWidget(self.export_btn)
 
@@ -217,12 +226,15 @@ class GenericGridView(QWidget):
         layout.addLayout(filters_layout)
         
         # 4. Table
-        columns = sorted(self.config["columnas"], key=lambda x: x.get("orden", 0))
+        columns = self.columns
         # Add actions column if needed
         has_actions = bool(self.config.get("acciones"))
         col_count = len(columns) + (1 if has_actions else 0)
         
         self.table = QTableWidget(0, col_count)
+        self.table.setSizeAdjustPolicy(QAbstractScrollArea.AdjustIgnored)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         
         # Headers
         headers = [c["etiqueta"] for c in columns]
@@ -235,19 +247,19 @@ class GenericGridView(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
-        self.table.verticalHeader().setDefaultSectionSize(44)
+        self.table.verticalHeader().setDefaultSectionSize(self.row_height)
         
         # Col Widths
         header_view = self.table.horizontalHeader()
+        header_view.sectionClicked.connect(self._on_header_clicked)
+        header_view.setStretchLastSection(False)
+        header_view.setMinimumSectionSize(90)
         for i, col in enumerate(columns):
             if not col.get("visible", True):
                 self.table.setColumnHidden(i, True)
                 
-            if col.get("stretch"):
-                header_view.setSectionResizeMode(i, QHeaderView.Stretch)
-            elif col.get("ancho"):
-                header_view.setSectionResizeMode(i, QHeaderView.Interactive)
-                self.table.setColumnWidth(i, col["ancho"])
+            header_view.setSectionResizeMode(i, QHeaderView.Interactive)
+            self.table.setColumnWidth(i, self._column_width(col))
                 
         if has_actions:
             idx = len(columns)
@@ -255,8 +267,8 @@ class GenericGridView(QWidget):
             self.table.setColumnWidth(idx, 96) # Standard width for actions
             
         # Height constraint (from original view)
-        self.table.setMinimumHeight(40 + (self.page_size * 44))
-        self.table.setMaximumHeight(40 + (self.page_size * 44))
+        self._update_table_height()
+        self._refresh_header_filter_icons()
         
         layout.addWidget(self.table)
         
@@ -315,18 +327,7 @@ class GenericGridView(QWidget):
     # ======================================================
 
     def _init_async_filters(self):
-        if not self.config.get("filtros"):
-            return
-            
-        for f in self.config["filtros"]:
-            combo = self.filters_ui.get(f["id"])
-            if combo:
-                self._start_combo_filter_loader(
-                    combo, 
-                    f["endpoint"], 
-                    f["cache_key"], 
-                    f["etiqueta_defecto"]
-                )
+        return
 
     def _start_combo_filter_loader(self, combo, endpoint, cache_key, default):
         worker = ComboLoaderRunnable(self.catalogo_service.get_catalogo, endpoint, cache_key)
@@ -345,17 +346,15 @@ class GenericGridView(QWidget):
                 combo.addItem(item["nombre"], item["id"])
 
     def _clear_filters(self):
-        if hasattr(self, 'search_input'):
-            self.search_input.clear()
-        
-        for combo in self.filters_ui.values():
-            combo.setCurrentIndex(0)
+        self.search_input.clear()
+        self.column_filter_combo.setCurrentIndex(0)
+        self.column_filters.clear()
             
         self.current_page = 1
         self._reload_all()
 
-    def _on_search(self):
-        query = self.search_input.text() if hasattr(self, 'search_input') else ""
+    def _on_search(self, *_args):
+        query = self.search_input.text()
         if query:
             LoggerService().log_event(f"Usuario buscó en {self.config['id']}: '{query}'")
         self.current_page = 1
@@ -379,14 +378,13 @@ class GenericGridView(QWidget):
         
         # Build Filters Dict
         filters = {}
-        if hasattr(self, 'search_input'):
-            filters[self.config.get("buscador", {}).get("param_api")] = self.search_input.text()
+        search_param = self.config.get("buscador", {}).get("param_api")
+        selected_column = self.column_filter_combo.currentData()
+        if search_param:
+            # If user filters by a specific column, apply search locally to avoid backend/global mismatch.
+            if selected_column == "__all__":
+                filters[search_param] = self.search_input.text()
             
-        for f in self.config.get("filtros", []):
-            combo = self.filters_ui.get(f["id"])
-            if combo:
-                filters[f["param_api"]] = combo.currentData()
-
         # Task closure
         def fetch_task():
             # Build URL
@@ -435,10 +433,13 @@ class GenericGridView(QWidget):
         else:
             items = response.get("items", [])
             self.total_pages = response.get("pages", 1)
+        self._raw_items = list(items)
+        items = self._apply_local_search(self._raw_items)
+        items = self._apply_column_header_filters(items)
         
         self.table.setRowCount(len(items))
         
-        columns = sorted(self.config["columnas"], key=lambda x: x.get("orden", 0))
+        columns = self.columns
         id_field = self.config["campo_id"]
         null_value = self.config.get("valor_nulo", "—")
         
@@ -469,7 +470,125 @@ class GenericGridView(QWidget):
                 record_id = item.get(id_field)
                 self._add_actions_cell(row, len(columns), record_id)
 
-        self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
+        if hasattr(self, "page_label"):
+            self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
+        self._refresh_header_filter_icons()
+
+    def _apply_local_search(self, items):
+        query = self.search_input.text().strip().lower()
+        if not query:
+            return items
+
+        selected_column = self.column_filter_combo.currentData()
+        columns_to_search = (
+            [selected_column]
+            if selected_column and selected_column != "__all__"
+            else [c["campo_api"] for c in self.columns if c.get("visible", True)]
+        )
+
+        filtered = []
+        for item in items:
+            for field in columns_to_search:
+                value = item.get(field)
+                if query in str(value or "").lower():
+                    filtered.append(item)
+                    break
+        return filtered
+
+    def _apply_column_header_filters(self, items):
+        if not self.column_filters:
+            return items
+
+        filtered = []
+        for item in items:
+            include = True
+            for field, expected in self.column_filters.items():
+                if expected is None:
+                    continue
+                value = item.get(field)
+                if str(value if value is not None else "—") != str(expected):
+                    include = False
+                    break
+            if include:
+                filtered.append(item)
+        return filtered
+
+    def _on_header_clicked(self, section_index):
+        if section_index < 0 or section_index >= len(self.columns):
+            return
+        if self.table.isColumnHidden(section_index):
+            return
+
+        col = self.columns[section_index]
+        field = col["campo_api"]
+        menu = QMenu(self)
+        group = QActionGroup(menu)
+        group.setExclusive(True)
+
+        current_filter = self.column_filters.get(field, None)
+        all_action = menu.addAction("Todos")
+        all_action.setCheckable(True)
+        all_action.setChecked(current_filter is None)
+        all_action.setData(None)
+        group.addAction(all_action)
+
+        values = sorted(
+            {
+                str(item.get(field) if item.get(field) is not None else "—")
+                for item in self._raw_items
+            }
+        )
+
+        if values:
+            menu.addSeparator()
+        for value in values:
+            action = menu.addAction(value)
+            action.setCheckable(True)
+            action.setChecked(str(current_filter) == value if current_filter is not None else False)
+            action.setData(value)
+            group.addAction(action)
+
+        header = self.table.horizontalHeader()
+        popup_pos = header.viewport().mapToGlobal(
+            QPoint(header.sectionViewportPosition(section_index), header.height())
+        )
+        selected = menu.exec(popup_pos)
+        if selected is None:
+            return
+
+        data = selected.data()
+        if data is None:
+            self.column_filters.pop(field, None)
+        else:
+            self.column_filters[field] = data
+        self._populate_table({"items": self._raw_items, "pages": self.total_pages})
+
+    def _refresh_header_filter_icons(self):
+        for i, col in enumerate(self.columns):
+            header_item = self.table.horizontalHeaderItem(i)
+            if not header_item:
+                continue
+            base = col["etiqueta"]
+            field = col["campo_api"]
+            suffix = "  ▼" if field not in self.column_filters else "  ●"
+            header_item.setText(f"{base}{suffix}")
+
+    def _toggle_column_visibility(self, col_index, checked):
+        self.table.setColumnHidden(col_index, not checked)
+
+    def _update_table_height(self):
+        base_height = 40
+        height = base_height + (self.page_size * self.row_height)
+        self.table.setMinimumHeight(height)
+        self.table.setMaximumHeight(height)
+
+    def _column_width(self, col_config):
+        width = col_config.get("ancho")
+        if isinstance(width, int) and width > 0:
+            return width
+        if col_config.get("stretch"):
+            return 240
+        return 140
 
     def _format_cell_value(self, col_config, value, null_value):
         if value is None:

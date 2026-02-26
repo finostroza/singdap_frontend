@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QApplication,
 )
-from PySide6.QtCore import Qt, QPropertyAnimation, QSize, QEasingCurve, Signal
+from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QPixmap
 
 from src.core.api_client import ApiClient
@@ -25,7 +25,7 @@ class Sidebar(QWidget):
         # ===============================
         # Configuración
         # ===============================
-        self.expanded_width = 280
+        self.expanded_width = 256
         self.collapsed_width = 64
         self.is_collapsed = False
 
@@ -35,6 +35,7 @@ class Sidebar(QWidget):
         self.setMinimumWidth(self.collapsed_width)
         self.setMaximumWidth(self.expanded_width)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        self.setFixedWidth(self.expanded_width)
 
         # ===============================
         # Logo (arriba, centrado)
@@ -160,22 +161,12 @@ class Sidebar(QWidget):
     # Toggle sidebar
     # ===============================
     def toggle(self):
-        start = self.width()
-        end = (
-            self.collapsed_width
-            if not self.is_collapsed
-            else self.expanded_width
-        )
-
-        self.animation = QPropertyAnimation(self, b"maximumWidth")
-        self.animation.setDuration(220)
-        self.animation.setStartValue(start)
-        self.animation.setEndValue(end)
-        self.animation.setEasingCurve(QEasingCurve.OutCubic)
-        self.animation.finished.connect(self._update_visibility)
-
         self.is_collapsed = not self.is_collapsed
-        self.animation.start()
+        target_width = (
+            self.collapsed_width if self.is_collapsed else self.expanded_width
+        )
+        self.setFixedWidth(target_width)
+        self._update_visibility()
 
     # ===============================
     # Update visibility
