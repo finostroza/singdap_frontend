@@ -82,9 +82,24 @@ class Sidebar(QWidget):
             active=True,
         )
 
+        self.btn_rat = self._nav_button(
+            "RAT",
+            "src/resources/icons/file.svg",
+        )
+
         self.btn_eipd = self._nav_button(
             "EIPD (Ex PIA)",
             "src/resources/icons/shield.svg",
+        )
+
+        self.btn_seguimiento = self._nav_button(
+            "Seguimiento de riesgos",
+            "src/resources/icons/shield.svg", # Using shield icon until specific one is provided
+        )
+
+        self.btn_trazabilidad = self._nav_button(
+            "Trazabilidad",
+            "src/resources/icons/search_white.svg",
         )
 
         self.btn_roles = self._nav_button(
@@ -92,22 +107,13 @@ class Sidebar(QWidget):
             "src/resources/icons/users.svg",
         )
 
-        self.btn_rat = self._nav_button(
-            "RAT",
-            "src/resources/icons/file.svg",
-        )
-
-        self.btn_trazabilidad = self._nav_button(
-            "Trazabilidad",
-            "src/resources/icons/search_white.svg", # Clean white icon for sidebar
-        )
-
         self.nav_buttons = [
             self.btn_inventario,
-            self.btn_eipd,
-            self.btn_roles,
             self.btn_rat,
+            self.btn_eipd,
+            self.btn_seguimiento,
             self.btn_trazabilidad,
+            self.btn_roles,
         ]
 
         # ===============================

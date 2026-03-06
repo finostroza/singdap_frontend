@@ -83,29 +83,25 @@ class ApiClient:
     # POST
     # ===============================
     def post(self, path: str, data: dict):
-        url = f"{self.base_url}{path}"
-        response = requests.post(
-            url,
-            json=data,
-            headers=self._headers()
-        )
+        url = self._build_url(path)
+        response = requests.post(url, json=data, headers=self._headers())
         response.raise_for_status()
         return response.json()
 
     # ===============================
     # DELETE
     # ===============================
-    
-    def delete(self, endpoint):
-        r = requests.delete(self.base_url + endpoint, headers=self._headers())
-        r.raise_for_status()
-        return r.json() if r.content else None
+    def delete(self, path: str):
+        url = self._build_url(path)
+        response = requests.delete(url, headers=self._headers())
+        response.raise_for_status()
+        return response.json() if response.content else None
     
     # ===============================
     # PUT 
     # ===============================
-    def put(self, endpoint: str, payload: dict):
-        url = f"{self.base_url}{endpoint}"
+    def put(self, path: str, payload: dict):
+        url = self._build_url(path)
         response = requests.put(url, json=payload, headers=self._headers())
         response.raise_for_status()
         return response.json()
@@ -113,8 +109,8 @@ class ApiClient:
     # ===============================
     # PATCH
     # ===============================
-    def patch(self, endpoint: str, payload: dict):
-        url = f"{self.base_url}{endpoint}"
+    def patch(self, path: str, payload: dict):
+        url = self._build_url(path)
         response = requests.patch(url, json=payload, headers=self._headers())
         response.raise_for_status()
         return response.json()
