@@ -41,10 +41,12 @@ class MainWindow(QMainWindow):
         # ===============================
         self.stack = QStackedWidget()
 
+        from src.viewmodels.seguimiento_viewmodel import SeguimientoViewModel
+        
         self.activos_view = ActivosView()
         self.rat_view = RatView()
         self.eipd_view = EipdView()
-        self.seguimiento_view = SeguimientoRiesgosView()
+        self.seguimiento_view = SeguimientoRiesgosView(SeguimientoViewModel())
         self.trazabilidad_view = TrazabilidadView()
         self.usuarios_view = UsuariosView()
 

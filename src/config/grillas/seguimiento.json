@@ -1,0 +1,68 @@
+{
+    "id": "seguimiento_riesgos",
+    "modulo_api": "SEGUIMIENTO",
+    "titulo": "Seguimiento de Riesgos",
+    "endpoints": {
+        "listado": "/riesgos/seguimiento"
+    },
+    "campo_id": "id",
+    "columnas": [
+        {
+            "campo_api": "tipo",
+            "etiqueta": "Tipo",
+            "visible": true,
+            "ancho": 100,
+            "orden": 1
+        },
+        {
+            "campo_api": "nombre",
+            "etiqueta": "Nombre",
+            "visible": true,
+            "stretch": true,
+            "orden": 2
+        },
+        {
+            "campo_api": "tipo_rat",
+            "etiqueta": "Tipo RAT",
+            "visible": true,
+            "ancho": 150,
+            "orden": 3
+        },
+        {
+            "campo_api": "subsecretaria",
+            "etiqueta": "Subsecretaría",
+            "visible": true,
+            "ancho": 200,
+            "orden": 4
+        },
+        {
+            "campo_api": "n_riesgos",
+            "etiqueta": "N° Riesgos ID",
+            "visible": true,
+            "ancho": 120,
+            "orden": 5
+        },
+        {
+            "campo_api": "n_subsanados",
+            "etiqueta": "N° Riesgos Subsanados",
+            "visible": true,
+            "ancho": 200,
+            "orden": 6
+        }
+    ],
+    "acciones": [
+        {
+            "id": "editar_grilla",
+            "icono": "src/resources/icons/edit.svg",
+            "tipo": "event",
+            "tooltip": "Editar Grilla de Riesgos",
+            "orden": 1
+        }
+    ],
+    "paginacion": {
+        "habilitado": true,
+        "tamano_pagina": 10,
+        "texto_anterior": "⟨ Anterior",
+        "texto_siguiente": "Siguiente ⟩"
+    }
+}

@@ -94,7 +94,7 @@ class Sidebar(QWidget):
 
         self.btn_seguimiento = self._nav_button(
             "Seguimiento de riesgos",
-            "src/resources/icons/shield.svg", # Using shield icon until specific one is provided
+            "src/resources/icons/alert_warning_white.svg",
         )
 
         self.btn_trazabilidad = self._nav_button(

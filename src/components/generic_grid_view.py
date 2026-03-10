@@ -113,6 +113,7 @@ class GenericGridView(QWidget):
     def _build_ui(self):
         # Layout
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # 1. Header (Title + User/Date)
         header_top = QHBoxLayout()
@@ -147,7 +148,7 @@ class GenericGridView(QWidget):
             
             for ind in indicators:
                 card = self._create_stat_card(ind["titulo"], "0")
-                self.indicators_ui[ind["campo_api"]] = card.value_label
+                self.indicators_ui[ind["campo_api"]] = card
                 stats_layout.addWidget(card)
                 
             layout.addLayout(stats_layout)
@@ -278,7 +279,7 @@ class GenericGridView(QWidget):
         # Col Widths
         header_view = self.table.horizontalHeader()
         header_view.sectionClicked.connect(self._on_header_clicked)
-        header_view.setStretchLastSection(False)
+        header_view.setStretchLastSection(True)
         header_view.setMinimumSectionSize(90)
         for i, col in enumerate(columns):
             if not col.get("visible", True):
@@ -643,10 +644,10 @@ class GenericGridView(QWidget):
                 
         for ind_config in self.config.get("indicadores", []):
             field = ind_config["campo_api"]
-            label = self.indicators_ui.get(field)
-            if label:
+            card = self.indicators_ui.get(field)
+            if card and hasattr(card, 'value_label'):
                 val = data.get(field, 0)
-                label.setText(str(val))
+                card.value_label.setText(str(val))
 
     def _invalidate_rat_catalog_cache_if_needed(self):
         # El catálogo de RAT se usa en EIPD; tras mutaciones en grilla RAT se debe refrescar.
