@@ -23,6 +23,7 @@ from src.core.api_client import ApiClient
 from src.services.cache_manager import CacheManager
 from src.services.user_service import UserService
 from src.workers.api_worker import ApiWorker
+from src.services.permission_service import PermissionService
 
 
 class UsuariosView(QWidget):
@@ -34,10 +35,11 @@ class UsuariosView(QWidget):
         self.cache_manager = CacheManager()
         self.permissions_cache_key = "usuarios_permissions_v2"
         self.permissions_overrides = {}
+        self.permission_service = PermissionService()
+        self.perm_module = "USUARIOS"
 
         self.current_user_index = 0
         self.status_toggle_worker = None
-        self.refresh_worker = None
         self.refresh_worker = None
         self.active_workers = [] # Lista para mantener referencias vivas de hilos en ejecución
         self.users_data = []
@@ -95,7 +97,50 @@ class UsuariosView(QWidget):
         layout.addSpacing(8)
         layout.addLayout(content_layout)
 
-        self._load_backend_data()
+        # 🛡️ Control de Acceso del Módulo
+        if not self.permission_service.has_module_access(self.perm_module):
+            self._show_permission_block()
+        else:
+            self._load_backend_data()
+
+    def _show_permission_block(self):
+        """Muestra un mensaje de bloqueo cuando el usuario no tiene permiso VER."""
+        overlay = QFrame(self)
+        overlay.setObjectName("permissionBlockOverlay")
+        overlay.setStyleSheet("""
+            QFrame#permissionBlockOverlay {
+                background-color: transparent;
+            }
+            QLabel {
+                color: #64748b;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """)
+        
+        l = QVBoxLayout(overlay)
+        l.setAlignment(Qt.AlignCenter)
+        
+        from utils import icon
+        icon_label = QLabel()
+        icon_label.setPixmap(icon("src/resources/icons/lock.svg").pixmap(64, 64))
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        msg_label = QLabel("No tiene permisos para el módulo de Usuarios / Roles.")
+        msg_label.setAlignment(Qt.AlignCenter)
+        
+        contact_label = QLabel("Este módulo está restringido a administradores o personal autorizado.")
+        contact_label.setStyleSheet("font-size: 12px; font-weight: normal; margin-top: 8px;")
+        contact_label.setAlignment(Qt.AlignCenter)
+        
+        l.addWidget(icon_label)
+        l.addWidget(msg_label)
+        l.addWidget(contact_label)
+        overlay.show()
+        
+        # Superponer al layout principal
+        self.layout().addWidget(overlay)
+        # Ocultar el resto del contenido si es necesario o el overlay lo tapará
 
     def _users_list_card(self):
         card = QFrame()
@@ -209,7 +254,13 @@ class UsuariosView(QWidget):
             }
 
             me = self.user_service.get_me()
-            me_permissions = self.user_service.get_permissions(str(me["id"]))
+            
+            # Intentamos obtener permisos propios, si falla (403) asumimos permisos vacíos.
+            try:
+                me_permissions = self.user_service.get_permissions(str(me["id"]))
+            except Exception as e:
+                print(f"No se pudieron cargar permisos propios (Probable usuario no-admin): {e}")
+                me_permissions = {"permisos": []}
 
             try:
                 privilegios = self.user_service.list_privilegios()
@@ -394,6 +445,8 @@ class UsuariosView(QWidget):
             create_access = False
             edit_access = False
             delete_access = False
+            approve_access = False
+            export_access = False
 
             for priv_text in normalized_privileges:
                 if not any(alias in priv_text for alias in aliases):
@@ -415,26 +468,33 @@ class UsuariosView(QWidget):
                 else:
                     view_access = True
 
-            if api_permisos:
-                # Usar datos del backend real
+            # 🛡️ COMBINACIÓN INTELIGENTE (Bug Fix):
+            # Priorizamos permisos reales del backend, pero si no existen (False),
+            # tratamos de ver si tiene acceso por perfil heredado.
+            # Excepto si el módulo está explícitamente reportado por API (entonces la API manda).
+            
+            is_in_api = module_key in real_backend_matrix
+            
+            if is_in_api:
+                # La API tiene registros para este módulo
                 matrix[module_key] = (
-                    real_backend_matrix.get(module_key, {}).get("VIEW", False),
-                    real_backend_matrix.get(module_key, {}).get("CREATE", False),
-                    real_backend_matrix.get(module_key, {}).get("EDIT", False),
-                    real_backend_matrix.get(module_key, {}).get("DELETE", False),
-                    real_backend_matrix.get(module_key, {}).get("APPROVE", False),
-                    real_backend_matrix.get(module_key, {}).get("EXPORT", False),
+                    real_backend_matrix[module_key].get("VIEW", False),
+                    real_backend_matrix[module_key].get("CREATE", False),
+                    real_backend_matrix[module_key].get("EDIT", False),
+                    real_backend_matrix[module_key].get("DELETE", False),
+                    real_backend_matrix[module_key].get("APPROVE", False),
+                    real_backend_matrix[module_key].get("EXPORT", False),
                 )
-            elif not module_enabled:
-                matrix[module_key] = (False, False, False, False, False, False)
             else:
+                # No hay registro granular en API, usamos permisos por perfil/privilegios
+                # Nota: Si el perfil dice que SI (module_enabled), habilitamos VER
                 matrix[module_key] = (
-                    view_access,
+                    view_access or module_enabled,
                     create_access,
                     edit_access,
                     delete_access,
-                    False,
-                    False,
+                    approve_access,
+                    export_access,
                 )
 
         return {"matrix": matrix, "action_ids": action_ids}
@@ -640,58 +700,13 @@ class UsuariosView(QWidget):
         self.current_user_index = user_index
         self._populate_user_list()
         
-        # Gatillamos la carga de datos frescos desde la API específicamente para este usuario
-        self._refresh_user_matrix_from_api(user_index)
+        # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
+        self._update_matrix_for_user(user_index)
 
     def _on_search_changed(self, _text):
         self._populate_user_list()
         if self.current_user_index >= 0:
             self._update_matrix_for_user(self.current_user_index)
-
-    def _refresh_user_matrix_from_api(self, user_index):
-        """Consulta la API para obtener los permisos más recientes del usuario seleccionado."""
-        if user_index < 0 or user_index >= len(self.users_data):
-            return
-
-        user = self.users_data[user_index]
-        backend_id = user.get("backend_id")
-        
-        # Si no hay ID de backend, solo actualizamos con lo que tenemos
-        if not backend_id:
-            self._update_matrix_for_user(user_index)
-            return
-
-        def fetch_fresh_perms():
-            return self.user_service.get_permissions(backend_id)
-
-        def on_fresh_data_ready(perms_payload):
-            # 1. Cargamos primero los datos frescos desde la API
-            api_results = self._map_permissions_to_modules(
-                perms_payload, 
-                self.privilege_name_by_code
-            )
-            
-            # 2. Establecemos los permisos de la API como base (separando matriz de IDs)
-            user["permissions"] = api_results.get("matrix", {})
-            user["action_ids"] = api_results.get("action_ids", {})
-            
-            # 3. Mezclamos inteligentemente: La API es ley para los módulos que reporta,
-            # pero si un módulo NO viene en la API (permisos vacíos), dejamos actuar a la cache local
-            api_modules = set(item.get("modulo_codigo", "").upper() for item in perms_payload.get("permisos", []))
-            # Resolvemos esos códigos a nuestras keys internas
-            api_keys = set(self._resolve_module_key(m) for m in api_modules)
-            
-            # Aplicamos la cache local solo para lo que el backend NO conoce aún
-            self._apply_selective_override(user, exclude_keys=api_keys)
-            
-            # 4. Si el usuario sigue seleccionado, actualizamos la tabla en pantalla
-            if self.current_user_index == user_index:
-                self._update_matrix_for_user(user_index)
-
-        # Guardamos la referencia en la instancia de la clase para evitar que se destruya prematuramente
-        self.refresh_worker = ApiWorker(fetch_fresh_perms)
-        self.refresh_worker.finished.connect(on_fresh_data_ready)
-        self.refresh_worker.start()
 
     def _update_matrix_for_user(self, user_index):
         if not self.users_data:
@@ -775,12 +790,24 @@ class UsuariosView(QWidget):
             
             def on_patch_done(result):
                 self.loading_overlay.hide_loading()
-                # Actualizamos la UI solo si la API respondió OK
+                print(f"DEBUG PERMS: PATCH exitoso -> {result}")
+                
+                # Sincronización inmediata de permisos locales
                 current_permissions[perm_idx] = next_state
                 user["permissions"][module_key] = tuple(current_permissions)
                 self._set_permission_value(row, col, next_state)
+                
+                # Persistencia en cache local para que al volver siga ahí
                 self._persist_user_permissions_override(user)
                 
+                # Actualizamos la visualización general si el usuario sigue seleccionado
+                try:
+                    current_idx = self.users_data.index(user)
+                    if self.current_user_index == current_idx:
+                        self._update_edit_hint()
+                except ValueError:
+                    pass
+
             def on_patch_error(err):
                 self.loading_overlay.hide_loading()
                 QMessageBox.warning(self, "Error", f"No se pudo actualizar el permiso en el servidor:\n{err}")
@@ -797,6 +824,9 @@ class UsuariosView(QWidget):
             self.perm_update_worker.error.connect(on_patch_error)
             self.perm_update_worker.start()
         else:
+            print(f"DEBUG PERMS: No se pudo enviar PATCH. backend_user_id={backend_user_id}, accion_id={accion_id}, action_name={action_name}, module_key={module_key}")
+            if not accion_id:
+                QMessageBox.warning(self, "Acción no enviada", f"No se pudo guardar el permiso de '{action_name}' en BD porque faltan los IDs de maestro. Solo se guardó en caché.")
             # Si es modo mockup (sin ID real), solo actualizamos localmente
             current_permissions[perm_idx] = next_state
             user["permissions"][module_key] = tuple(current_permissions)

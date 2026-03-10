@@ -1,5 +1,6 @@
 {
     "id": "rat",
+    "modulo_api": "RAT",
     "titulo": "Registro de Actividades de Tratamiento (RAT)",
     "endpoints": {
         "listado": "/rat",
@@ -19,14 +20,14 @@
             "orden": 1
         },
         {
-            "campo_api": "tipo_tratamiento_nombre", 
+            "campo_api": "tipo_tratamiento_nombre",
             "etiqueta": "Tipo Tratamiento",
             "visible": true,
             "ancho": 180,
             "orden": 2
         },
         {
-            "campo_api": "subsecretaria_nombre", 
+            "campo_api": "subsecretaria_nombre",
             "etiqueta": "Subsecretaría",
             "visible": true,
             "ancho": 250,
@@ -55,8 +56,16 @@
         }
     ],
     "indicadores": [
-        { "titulo": "Total RAT", "campo_api": "total_rat", "orden": 1 },
-        { "titulo": "En Revisión", "campo_api": "en_revision", "orden": 2 }
+        {
+            "titulo": "Total RAT",
+            "campo_api": "total_rat",
+            "orden": 1
+        },
+        {
+            "titulo": "En Revisión",
+            "campo_api": "en_revision",
+            "orden": 2
+        }
     ],
     "acciones": [
         {

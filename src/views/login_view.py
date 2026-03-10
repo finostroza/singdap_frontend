@@ -14,7 +14,10 @@ from PySide6.QtGui import QPixmap, QPalette, QColor
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
+from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
+from src.services.user_service import UserService
+from src.services.permission_service import PermissionService
 from src.workers.jwt_utils import decode_jwt
 
 
@@ -180,10 +183,10 @@ class LoginView(QWidget):
         # Guardar token
         api.set_token(access_token)
 
-        # 🔓 Decodificar token
         try:
             payload = decode_jwt(access_token)
-            user_id =payload.get("sub")
+            user_id = payload.get("sub")
+            print(f"DEBUG LOGIN: JWT Payload (Token) -> {payload}")
 
             if not user_id:
                 raise ValueError("El token no contiene userId")
@@ -197,17 +200,103 @@ class LoginView(QWidget):
         LoggerService().init_session(str(user_id))
         LoggerService().log_event("Inicio de sesión exitoso")
 
+        # 🚀 VALIDACIÓN CRÍTICA: Bloqueo de acceso si el usuario está inhabilitado
+        self.loading_overlay.show_loading()
+        try:
+            user_service = UserService()
+            user_info = {}
+            
+            try:
+                # Intentamos obtener los datos del usuario logueado
+                user_info = user_service.get_me()
+            except Exception as e:
+                # Si el servidor responde 401 (Unauthorized), es un bloqueo definitivo del backend
+                if "401" in str(e):
+                    self.loading_overlay.hide_loading()
+                    dialog = UserInactiveDialog(self)
+                    dialog.exec()
+                    self._reset_login_form()
+                    return
+                else:
+                    raise e
+
+            # Si el servidor responde OK, pero el campo is_active es False explícitamente
+            if not user_info.get("is_active", False):
+                self.loading_overlay.hide_loading()
+                dialog = UserInactiveDialog(self)
+                dialog.exec()
+                self._reset_login_form()
+                return
+
+            print(f"DEBUG LOGIN: Datos completos del Usuario -> {user_info}")
+
+        except Exception as e:
+            self.loading_overlay.hide_loading()
+            self._set_error(f"Error de validación: {str(e)}")
+            return
+
+        # 🚀 CARGA DE PERMISOS PARA EL SISTEMA
+        perm_service = PermissionService()
+        perm_service.set_admin_status(self.vm.auth_service.api.is_admin)
+        
+        try:
+            # 🚀 ESTRATEGIA DE CARGA DOBLE: Intentamos 'me' primero, luego el ID específico
+            print(f"DEBUG LOGIN: Intentando cargar permisos para 'me'...")
+            perms = {}
+            try:
+                perms = user_service.get_permissions("me")
+                if not perms.get("permisos") and not perms.get("perfiles"):
+                    raise ValueError("Payload vacío en 'me'")
+            except Exception:
+                effective_id = str(user_info.get("id", user_id))
+                print(f"DEBUG LOGIN: Reintentando con ID específico: {effective_id}")
+                perms = user_service.get_permissions(effective_id)
+            
+            perm_service.set_permissions(perms)
+        except Exception as e:
+            LoggerService().log_error("Error cargando permisos en login", str(e))
+            # Si falla y no es admin, no podrá hacer nada (seguridad)
+            if not self.vm.auth_service.api.is_admin:
+                perm_service.set_permissions({"permisos": []})
+
+        self.loading_overlay.hide_loading()
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
         self.main_window.show()
 
         self.hide()
 
+    def _reset_login_form(self):
+        """Limpia el formulario y devuelve el foco al usuario."""
+        self.user_input.clear()
+        self.password_input.clear()
+        self.user_input.setFocus()
+
 
 
     def _on_error(self, error: str):
         LoggerService().log_error("Fallo de inicio de sesión", error)
-        self._set_error(error)
+        
+        # 🚀 MENSAJE INSTITUCIONAL PARA ERROR DE CREDENCIALES O USUARIO NO EXISTENTE
+        # Se activa ante errores 401, 500, o fallos de autenticación generales.
+        custom_message = (
+            "<b>Estimada(o) Usuaria(o):</b><br><br>"
+            "El acceso al sistema se encuentra restringido a usuarios autorizados.<br><br>"
+            "Ud. ha ingresado mal su Usuario/Contraseña o su cuenta no se encuentra creada.<br><br>"
+            "Puede solicitar la creación de usuario correspondiente, enviando un correo electrónico a:<br><br>"
+            "<span style='color: #0072ce; font-weight: bold;'>📧 gobernanza-datos@desarrollosocial.gob.cl</span><br><br>"
+            "En su solicitud indique su nombre, unidad o departamento, y motivo de acceso."
+        )
+        
+        dialog = UserInactiveDialog(
+            title="Acceso Restringido",
+            message=custom_message,
+            parent=self
+        )
+        dialog.exec()
+        
+        # Resetear campos para privacidad y nuevo intento
+        self._reset_login_form()
 
     def _on_loading(self, loading: bool):
         self.login_button.setEnabled(not loading)
