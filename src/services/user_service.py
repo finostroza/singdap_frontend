@@ -13,8 +13,13 @@ class UserService:
     def get_permissions(self, user_id: str) -> dict:
         return self.api.get(f"/users/{user_id}/permisos")
 
-    def list_users(self) -> list[dict]:
-        return self.api.get("/users")
+    def list_users(self, page: int = 1, size: int = 10, nombre: str = None, rut: str = None, email: str = None, is_active: bool = None) -> dict:
+        params = {"page": page, "size": size}
+        if nombre: params["nombre"] = nombre
+        if rut: params["rut"] = rut
+        if email: params["email"] = email
+        if is_active is not None: params["is_active"] = is_active
+        return self.api.get("/users", params=params)
 
     def list_modulos(self) -> list[dict]:
         return self.api.get("/admin/modulos")

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QMessageBox,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 from src.components.loading_overlay import LoadingOverlay
 from src.core.api_client import ApiClient
@@ -37,6 +37,14 @@ class UsuariosView(QWidget):
         self.permissions_overrides = {}
         self.permission_service = PermissionService()
         self.perm_module = "USUARIOS"
+
+        self.current_page = 1
+        self.page_size = 10
+        self.has_next = False
+        self.search_timer = QTimer()
+        self.search_timer.setSingleShot(True)
+        self.search_timer.setInterval(500)
+        self.search_timer.timeout.connect(self._on_search_timeout)
 
         self.current_user_index = 0
         self.status_toggle_worker = None
@@ -161,7 +169,7 @@ class UsuariosView(QWidget):
         self.search = QLineEdit()
         self.search.setObjectName("usersSearch")
         self.search.setPlaceholderText("Buscar (nombre, mail, id)...")
-        self.search.textChanged.connect(self._on_search_changed)
+        self.search.textChanged.connect(self._on_search_text_changed)
         self.search.setFixedWidth(360)
 
         self.users_list = QListWidget()
@@ -171,11 +179,33 @@ class UsuariosView(QWidget):
         self.users_list.setSelectionMode(QAbstractItemView.NoSelection)
         self.users_list.itemClicked.connect(self._on_user_selected)
 
+        self.btn_prev = QPushButton("( Anterior")
+        self.btn_prev.setObjectName("secondaryButton")
+        self.btn_prev.clicked.connect(self._on_prev_page)
+        self.btn_prev.setEnabled(False)
+
+        self.lbl_page = QLabel("Página 1 de 1")
+        self.lbl_page.setAlignment(Qt.AlignCenter)
+        self.lbl_page.setObjectName("pageSubtitle")
+
+        self.btn_next = QPushButton("Siguiente )")
+        self.btn_next.setObjectName("secondaryButton")
+        self.btn_next.clicked.connect(self._on_next_page)
+        self.btn_next.setEnabled(False)
+        
+        pagination_layout = QHBoxLayout()
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.btn_prev)
+        pagination_layout.addWidget(self.lbl_page)
+        pagination_layout.addWidget(self.btn_next)
+        pagination_layout.addStretch()
+
         layout = QVBoxLayout(card)
         layout.addLayout(top_titles)
         layout.addWidget(self.search, alignment=Qt.AlignLeft)
         layout.addSpacing(8)
         layout.addWidget(self.users_list)
+        layout.addLayout(pagination_layout)
 
         return card
 
@@ -244,6 +274,10 @@ class UsuariosView(QWidget):
 
     def _load_backend_data(self):
         self.loading_overlay.show_loading()
+        
+        current_page_val = self.current_page
+        current_size_val = self.page_size
+        current_search_val = self.search.text().strip()
 
         def fetch_data():
             result = {
@@ -251,6 +285,8 @@ class UsuariosView(QWidget):
                 "list_users_api_available": True,
                 "permissions_update_api_available": False,
                 "privilege_name_by_code": {},
+                "has_next": False,
+                "total": 0,
             }
 
             me = self.user_service.get_me()
@@ -280,17 +316,40 @@ class UsuariosView(QWidget):
                 result["privilege_name_by_code"] = {}
                 result["master_action_ids"] = {}
 
-            users = []
+            users_list = []
             if self.api.is_admin:
                 try:
-                    users = self.user_service.list_users()
-                except Exception:
+                    search_nombre = None
+                    search_rut = None
+                    search_email = None
+
+                    if current_search_val:
+                        if "@" in current_search_val:
+                            search_email = current_search_val
+                        # Identificamos si el término contiene dígitos para inferir que es un RUT
+                        elif any(char.isdigit() for char in current_search_val):
+                            search_rut = current_search_val
+                        else:
+                            search_nombre = current_search_val
+
+                    paged_response = self.user_service.list_users(
+                        page=current_page_val,
+                        size=current_size_val,
+                        nombre=search_nombre,
+                        rut=search_rut,
+                        email=search_email
+                    )
+                    users_list = paged_response.get("items", [])
+                    result["has_next"] = paged_response.get("has_next", False)
+                    result["total"] = paged_response.get("total", 0)
+                except Exception as e:
+                    print(f"Error cargando usuarios: {e}")
                     result["list_users_api_available"] = False
 
-            if not users:
-                users = [me]
+            if not users_list:
+                users_list = [me]
 
-            for user in users:
+            for user in users_list:
                 user_id = str(user.get("id", ""))
                 perms_payload = me_permissions if user_id == str(me.get("id")) else None
                 if perms_payload is None:
@@ -319,6 +378,7 @@ class UsuariosView(QWidget):
     def _on_data_loaded(self, data):
         self.loading_overlay.hide_loading()
         self.users_data = data.get("users", [])
+        self.has_next = data.get("has_next", False)
         self.list_users_api_available = data.get("list_users_api_available", True)
         self.permissions_update_api_available = data.get(
             "permissions_update_api_available", False
@@ -326,6 +386,16 @@ class UsuariosView(QWidget):
         self.privilege_name_by_code = data.get("privilege_name_by_code", {})
         self.master_action_ids = data.get("master_action_ids", {})
         self.permissions_overrides = self._load_permissions_overrides()
+        
+        total = data.get("total", 0)
+        total_pages = max(1, (total + self.page_size - 1) // self.page_size)
+
+        if hasattr(self, "btn_prev"):
+            self.btn_prev.setEnabled(self.current_page > 1)
+        if hasattr(self, "btn_next"):
+            self.btn_next.setEnabled(self.has_next)
+        if hasattr(self, "lbl_page"):
+            self.lbl_page.setText(f"Página {self.current_page} de {total_pages}")
 
         if not self.users_data:
             self.users_data = [
@@ -379,6 +449,7 @@ class UsuariosView(QWidget):
             "id": display_id,
             "backend_id": user_id_raw,
             "status": "Activo" if user.get("is_active", False) else "Inactivo",
+            "rol_ris": user.get("rol_ris"),
             "packs": len((permissions_payload or {}).get("packs", [])),
             "permissions": permissions.get("matrix", {}),
             "action_ids": permissions.get("action_ids", {}),
@@ -566,7 +637,6 @@ class UsuariosView(QWidget):
         return code
 
     def _populate_user_list(self):
-        search_term = self.search.text().strip().lower() if hasattr(self, "search") else ""
         self.users_list.clear()
 
         if not self.users_data:
@@ -576,10 +646,6 @@ class UsuariosView(QWidget):
         first_item = None
 
         for index, user in enumerate(self.users_data):
-            blob = f"{user['name']} {user['email']} {user['id']}".lower()
-            if search_term and search_term not in blob:
-                continue
-
             item = QListWidgetItem()
             item.setData(Qt.UserRole, index)
             card_widget = self._user_card_widget(
@@ -636,9 +702,24 @@ class UsuariosView(QWidget):
         packs.setObjectName("userTextSelected" if is_selected else "userText")
         packs.setAlignment(Qt.AlignRight)
 
+        badges_layout = QHBoxLayout()
+        badges_layout.setAlignment(Qt.AlignRight)
+        badges_layout.setSpacing(8)
+
+        if user.get("rol_ris") == "PENDIENTE_CONFIGURACION":
+            btn_add = QPushButton("Registrar")
+            btn_add.setObjectName("statusBadgePending")
+            btn_add.setCursor(Qt.PointingHandCursor if self.api.is_admin else Qt.ArrowCursor)
+            btn_add.clicked.connect(
+                lambda _checked=False, idx=user_index: self._on_registrar_clicked(idx)
+            )
+            badges_layout.addWidget(btn_add)
+
+        badges_layout.addWidget(status)
+
         right = QVBoxLayout()
         right.setAlignment(Qt.AlignTop | Qt.AlignRight)
-        right.addWidget(status, alignment=Qt.AlignRight)
+        right.addLayout(badges_layout)
         right.addStretch()
         right.addWidget(packs, alignment=Qt.AlignRight)
 
@@ -648,6 +729,37 @@ class UsuariosView(QWidget):
         layout.addStretch()
         layout.addLayout(right)
         return card
+
+    def _on_registrar_clicked(self, user_index):
+        if not self.api.is_admin:
+            return
+        if user_index < 0 or user_index >= len(self.users_data):
+            return
+
+        user = self.users_data[user_index]
+        
+        from pathlib import Path
+        from src.components.generic_form_dialog import GenericFormDialog
+        
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent
+        config_path = base_dir / "src" / "config" / "formularios" / "usuarios_registro.json"
+        
+        # Instanciamos el diálogo base utilizando la ruta absoluta al JSON
+        dialog = GenericFormDialog(str(config_path), parent=self)
+        
+        # Pre-cargamos los identificadores únicos y dejamos nombre y correo vacíos
+        dialog.asset_data = {
+            "rut": user.get("id", ""),
+            "nombre": "",
+            "email": "",
+            "backend_id": user.get("backend_id")
+        }
+        dialog._try_set_values()
+        
+        # Ocultar o simular carga si es necesario, pero aquí solo se muestra el form
+        if dialog.exec():
+            # Si el modal se guardó con éxito (HTTP 200), refrescar la lista para remover el status PENDIENTE
+            self._load_backend_data()
 
     def _on_toggle_user_status(self, user_index):
         if not self.api.is_admin:
@@ -703,10 +815,22 @@ class UsuariosView(QWidget):
         # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
         self._update_matrix_for_user(user_index)
 
-    def _on_search_changed(self, _text):
-        self._populate_user_list()
-        if self.current_user_index >= 0:
-            self._update_matrix_for_user(self.current_user_index)
+    def _on_search_text_changed(self, _text):
+        self.search_timer.start()
+
+    def _on_search_timeout(self):
+        self.current_page = 1
+        self._load_backend_data()
+
+    def _on_prev_page(self):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self._load_backend_data()
+
+    def _on_next_page(self):
+        if self.has_next:
+            self.current_page += 1
+            self._load_backend_data()
 
     def _update_matrix_for_user(self, user_index):
         if not self.users_data:

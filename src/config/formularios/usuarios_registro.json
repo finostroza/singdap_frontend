@@ -1,0 +1,38 @@
+{
+    "endpoint": "/users/complete-registration",
+    "id_field": "rut",
+    "title_new": "Completar registro",
+    "title_edit": "Completar registro",
+    "width": 1000,
+    "height": 600,
+    "sections": [
+        {
+            "title": "1. Identificación",
+            "description": "Antecedentes principales para individualizar el usuario.",
+            "fields": [
+                {
+                    "key": "rut",
+                    "label": "RUT",
+                    "description": "Rol Único Tributario del usuario.",
+                    "type": "text",
+                    "required": true,
+                    "readonly": true
+                },
+                {
+                    "key": "nombre",
+                    "label": "Nombre",
+                    "description": "Denominación oficial y única del usuario. Escriba el nombre completo del solicitante.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "email",
+                    "label": "EMAIL",
+                    "description": "Correo electrónico institucional y único del usuario.",
+                    "type": "text",
+                    "required": true
+                }
+            ]
+        }
+    ]
+}
