@@ -14,6 +14,7 @@ from PySide6.QtGui import QPixmap
 from src.core.api_client import ApiClient
 from src.components.alert_dialog import AlertDialog
 from src.services.cache_manager import CacheManager
+from src.services.permission_service import PermissionService
 from utils import icon, resource_path
 
 
@@ -107,6 +108,11 @@ class Sidebar(QWidget):
             "src/resources/icons/users.svg",
         )
 
+        self.btn_dashboard = self._nav_button(
+            "Dashboard",
+            "src/resources/icons/dashboard.svg",
+        )
+
         self.nav_buttons = [
             self.btn_inventario,
             self.btn_rat,
@@ -114,7 +120,20 @@ class Sidebar(QWidget):
             self.btn_seguimiento,
             self.btn_trazabilidad,
             self.btn_roles,
+            self.btn_dashboard,
         ]
+        
+        # ===============================
+        # Permission Filtering
+        # ===============================
+        perm_service = PermissionService()
+        self.btn_dashboard.setVisible(perm_service.has_module_access("DASHBOARD"))
+        self.btn_inventario.setVisible(perm_service.has_module_access("INVENTARIO"))
+        self.btn_rat.setVisible(perm_service.has_module_access("RAT"))
+        self.btn_eipd.setVisible(perm_service.has_module_access("EIPD"))
+        self.btn_seguimiento.setVisible(perm_service.has_module_access("SEGUIMIENTO"))
+        self.btn_trazabilidad.setVisible(perm_service.has_module_access("TRAZABILIDAD"))
+        self.btn_roles.setVisible(perm_service.has_module_access("USUARIOS"))
 
         # ===============================
         # Logout

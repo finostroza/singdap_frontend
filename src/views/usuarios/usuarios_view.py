@@ -24,6 +24,7 @@ from src.services.cache_manager import CacheManager
 from src.services.user_service import UserService
 from src.workers.api_worker import ApiWorker
 from src.services.permission_service import PermissionService
+from src.components.alert_dialog import AlertDialog
 
 
 class UsuariosView(QWidget):
@@ -386,6 +387,9 @@ class UsuariosView(QWidget):
         self.privilege_name_by_code = data.get("privilege_name_by_code", {})
         self.master_action_ids = data.get("master_action_ids", {})
         self.permissions_overrides = self._load_permissions_overrides()
+        
+        # Ordenar usuarios por RUT ascendente (desde el 1er dígito)
+        self.users_data.sort(key=self._rut_sort_key, reverse=False)
         
         total = data.get("total", 0)
         total_pages = max(1, (total + self.page_size - 1) // self.page_size)
@@ -772,7 +776,22 @@ class UsuariosView(QWidget):
         if not backend_id:
             return
 
-        next_active = user.get("status", "Inactivo") != "Activo"
+        is_currently_active = user.get("status", "Inactivo") == "Activo"
+        next_active = not is_currently_active
+
+        if next_active:
+            msg = f"Confirmar activación de NOMBRE : {user.get('name', 'N/A')},  RUT : {user.get('id', 'N/A')}"
+            dialog = AlertDialog(
+                title="Confirmar Activación",
+                message=msg,
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Confirmar",
+                cancel_text="Cancelar",
+                parent=self
+            )
+            if not dialog.exec():
+                return
+
         self.loading_overlay.show_loading()
 
         def do_toggle():
@@ -1005,6 +1024,15 @@ class UsuariosView(QWidget):
     @staticmethod
     def _user_cache_id(user):
         return str(user.get("backend_id") or user.get("id") or "")
+
+    def _rut_sort_key(self, user):
+        """Retorna el RUT como string para ordenamiento ascendente por primer dígito."""
+        rut = str(user.get("id", "")).strip().lower()
+        if not rut or rut == "-":
+            return "zzzzzz" # Enviar vacíos al final
+        # Si es admin, lo dejamos al final o al principio según se prefiera, 
+        # pero usualmente los RUTs numéricos van primero.
+        return rut
 
     def resizeEvent(self, event):
         if hasattr(self, "loading_overlay"):

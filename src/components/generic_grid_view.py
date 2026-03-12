@@ -291,7 +291,7 @@ class GenericGridView(QWidget):
         if has_actions:
             idx = len(columns)
             header_view.setSectionResizeMode(idx, QHeaderView.Fixed)
-            self.table.setColumnWidth(idx, 96) # Standard width for actions
+            self.table.setColumnWidth(idx, 120) # Updated width for 3 icons + centering
             
         # Height constraint (from original view)
         self._update_table_height()
@@ -498,8 +498,7 @@ class GenericGridView(QWidget):
             
             # Actions cell
             if self.config.get("acciones"):
-                record_id = item.get(id_field)
-                self._add_actions_cell(row, len(columns), record_id)
+                self._add_actions_cell(row, len(columns), item)
 
         if hasattr(self, "page_label"):
             self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
@@ -658,16 +657,39 @@ class GenericGridView(QWidget):
     # Actions
     # ======================================================
 
-    def _add_actions_cell(self, row, col_idx, record_id):
+    def _add_actions_cell(self, row, col_idx, item):
         w = QWidget()
         l = QHBoxLayout(w)
-        l.setContentsMargins(0, 0, 0, 0)
+        l.setContentsMargins(6, 0, 6, 0)
+        l.setSpacing(4)
         l.setAlignment(Qt.AlignCenter)
+        
+        id_field = self.config["campo_id"]
+        record_id = item.get(id_field)
         
         sorted_actions = sorted(self.config["acciones"], key=lambda x: x.get("orden", 0))
         
         for action in sorted_actions:
+            # Check for conditional visibility
+            is_visible = True
+            visible_if = action.get("visible_if")
+            if visible_if:
+                field = visible_if.get("campo")
+                value = visible_if.get("valor")
+                if field and value:
+                    item_val = str(item.get(field, "")).upper()
+                    if item_val != str(value).upper():
+                        is_visible = False
+
+            if not is_visible:
+                # Add a placeholder to maintain columnar alignment
+                placeholder = QWidget()
+                placeholder.setFixedSize(28, 28)
+                l.addWidget(placeholder)
+                continue
+
             btn = QPushButton()
+            btn.setFixedSize(28, 28) # Ensure consistent size for alignment
             btn.setIcon(icon(action["icono"]))
             btn.setToolTip(action.get("tooltip", ""))
             
@@ -679,7 +701,8 @@ class GenericGridView(QWidget):
                 "EDITAR": "EDITAR",
                 "ELIMINAR": "ELIMINAR",
                 "APROBAR": "APROBAR",
-                "EXPORTAR": "EXPORTAR"
+                "EXPORTAR": "EXPORTAR",
+                "DUPLICAR": "EDITAR" # Duplicate usually requires edit permissions
             }
             
             target_perm = perm_map.get(action_id)
@@ -1189,6 +1212,9 @@ class GenericGridView(QWidget):
         elif action_type == "export_row":
             self._export_single_row(record_id)
 
+        elif action_type == "duplicate":
+            self._execute_duplicate(action_config, record_id)
+
     def _export_single_row(self, record_id):
         endpoint_template = self.config.get("endpoints", {}).get("detalle")
         if not endpoint_template:
@@ -1342,3 +1368,49 @@ class GenericGridView(QWidget):
         if self.current_page < self.total_pages:
             self.current_page += 1
             self._reload_all()
+
+    def _execute_duplicate(self, action_config, record_id):
+        endpoint_template = self.config.get("endpoints", {}).get("duplicar")
+        if not endpoint_template:
+            return
+
+        url = endpoint_template.replace("{id}", str(record_id))
+        self.loading_overlay.show_loading()
+
+        def do_duplicate():
+            return self.api.post(url, {})
+
+        self.duplicate_worker = ApiWorker(do_duplicate, parent=self)
+        self.duplicate_worker.finished.connect(lambda data: self._on_duplicate_success(data, record_id))
+        self.duplicate_worker.error.connect(self._on_duplicate_error)
+        self.duplicate_worker.start()
+
+    def _on_duplicate_success(self, new_item, original_id):
+        self.loading_overlay.hide_loading()
+        
+        # We reload everything to ensure the backend's 'list' joins and formatting 
+        # are correctly applied to the new record (fixing the "---" issues)
+        self._reload_all()
+        
+        module_name = self.config.get("titulo", "registro")
+        LoggerService().log_event(f"{module_name} duplicado exitosamente: {original_id}")
+        
+        AlertDialog(
+            title="Éxito",
+            message=f"Se ha creado una nueva versión del {module_name.lower()} correctamente.",
+            icon_path="src/resources/icons/alert_success.svg",
+            confirm_text="Aceptar",
+            parent=self
+        ).exec()
+
+    def _on_duplicate_error(self, error):
+        self.loading_overlay.hide_loading()
+        module_name = self.config.get("titulo", "registro")
+        LoggerService().log_error(f"Error al duplicar {module_name}", error)
+        AlertDialog(
+            title="Error",
+            message=f"No se pudo duplicar el {module_name.lower()}: {error}",
+            icon_path="src/resources/icons/alert_error.svg",
+            confirm_text="Aceptar",
+            parent=self
+        ).exec()

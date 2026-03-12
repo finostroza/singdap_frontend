@@ -12,7 +12,10 @@ from src.views.usuarios.usuarios_view import UsuariosView
 from src.views.eipd.eipd_view import EipdView
 from src.views.rat.rat_view import RatView
 from src.views.trazabilidad.trazabilidad_view import TrazabilidadView
+from src.views.dashboard.dashboard_view import DashboardView
+from src.viewmodels.dashboard_viewmodel import DashboardViewModel
 from src.views.seguimiento.seguimiento_riesgos_view import SeguimientoRiesgosView
+from src.services.permission_service import PermissionService
 
 
 class MainWindow(QMainWindow):
@@ -50,6 +53,7 @@ class MainWindow(QMainWindow):
         self.seguimiento_view = SeguimientoRiesgosView(SeguimientoViewModel())
         self.trazabilidad_view = TrazabilidadView()
         self.usuarios_view = UsuariosView()
+        self.dashboard_view = DashboardView(DashboardViewModel())
 
         # Stack indexes (Matching Sidebar order)
         self.stack.addWidget(self.activos_view)        # 0
@@ -58,6 +62,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.seguimiento_view)    # 3
         self.stack.addWidget(self.trazabilidad_view)   # 4
         self.stack.addWidget(self.usuarios_view)       # 5
+        self.stack.addWidget(self.dashboard_view)      # 6
 
         # ===============================
         # Layout
@@ -98,10 +103,30 @@ class MainWindow(QMainWindow):
             lambda: self._navigate(5, 5)
         )
 
+        self.sidebar.btn_dashboard.clicked.connect(
+            lambda: self._navigate(6, 6)
+        )
+
         # ===============================
         # Estado inicial
         # ===============================
-        self._navigate(0, 0)
+        perm_service = PermissionService()
+        if perm_service.has_module_access("INVENTARIO"):
+            self._navigate(0, 0)
+        elif perm_service.has_module_access("RAT"):
+            self._navigate(1, 1)
+        elif perm_service.has_module_access("EIPD"):
+            self._navigate(2, 2)
+        elif perm_service.has_module_access("SEGUIMIENTO"):
+            self._navigate(3, 3)
+        elif perm_service.has_module_access("TRAZABILIDAD"):
+            self._navigate(4, 4)
+        elif perm_service.has_module_access("USUARIOS"):
+            self._navigate(5, 5)
+        elif perm_service.has_module_access("DASHBOARD"):
+            self._navigate(6, 6)
+        else:
+            self._navigate(0, 0)
         
         self.sidebar.logout_requested.connect(self._on_logout_requested)
 

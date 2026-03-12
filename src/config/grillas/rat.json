@@ -8,7 +8,8 @@
         "detalle": "/rat/{id}/full",
         "crear": "/rat",
         "editar": "/rat/{id}/full",
-        "eliminar": "/rat/{id}"
+        "eliminar": "/rat/{id}",
+        "duplicar": "/rat/{id}/nueva-version"
     },
     "campo_id": "rat_id",
     "columnas": [
@@ -74,6 +75,17 @@
             "tipo": "dialog",
             "dialog_class": "RatDialog",
             "orden": 1
+        },
+        {
+            "id": "duplicar",
+            "icono": "src/resources/icons/stickies.svg",
+            "tipo": "duplicate",
+            "tooltip": "Duplicar RAT",
+            "orden": 3,
+            "visible_if": {
+                "campo": "estado",
+                "valor": "APROBADO"
+            }
         },
         {
             "id": "eliminar",
