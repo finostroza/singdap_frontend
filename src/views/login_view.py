@@ -16,11 +16,6 @@ from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
 from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
-from src.services.user_service import UserService
-<<<<<<< Updated upstream
-from src.services.permission_service import PermissionService
-=======
->>>>>>> Stashed changes
 from src.workers.jwt_utils import decode_jwt
 
 
@@ -186,7 +181,7 @@ class LoginView(QWidget):
         # Guardamos el token
         api.set_token(access_token)
 
-        # Decodificamos el token para utilizar la información internamente
+        # 🔓 Decodificar token
         try:
             payload = decode_jwt(access_token)
             user_id = payload.get("sub")
@@ -204,75 +199,6 @@ class LoginView(QWidget):
         LoggerService().init_session(str(user_id))
         LoggerService().log_event("Inicio de sesión exitoso")
 
-        # Validamos que el usuario se encuentre activo antes de permitir el ingreso
-        self.loading_overlay.show_loading()
-        try:
-            user_service = UserService()
-            user_info = {}
-            
-            try:
-                # Intentamos obtener los datos del usuario logueado
-                user_info = user_service.get_me()
-            except Exception as e:
-                # Si recibimos un error 401 (Unauthorized) al intentar consultar /me,
-                # lo tomamos como indicativo de que la cuenta no está activa.
-                if "401" in str(e):
-                    self.loading_overlay.hide_loading()
-                    dialog = UserInactiveDialog(self)
-                    dialog.exec()
-                    self._reset_login_form()
-                    return
-                else:
-                    raise e # Re-lanzar si es otro tipo de error
-
-            # Verificamos directamente el flag is_active en la respuesta
-            if not user_info.get("is_active", False):
-                self.loading_overlay.hide_loading()
-                dialog = UserInactiveDialog(self)
-                dialog.exec()
-                self._reset_login_form()
-                return
-
-<<<<<<< Updated upstream
-            print(f"DEBUG LOGIN: Datos completos del Usuario -> {user_info}")
-
-        except Exception as e:
-            self.loading_overlay.hide_loading()
-            self._set_error(f"Error de validación: {str(e)}")
-            return
-
-        # 🚀 CARGA DE PERMISOS PARA EL SISTEMA
-        perm_service = PermissionService()
-        perm_service.set_admin_status(self.vm.auth_service.api.is_admin)
-        
-        try:
-            # 🚀 ESTRATEGIA DE CARGA DOBLE: Intentamos 'me' primero, luego el ID específico
-            print(f"DEBUG LOGIN: Intentando cargar permisos para 'me'...")
-            perms = {}
-            try:
-                perms = user_service.get_permissions("me")
-                if not perms.get("permisos") and not perms.get("perfiles"):
-                    raise ValueError("Payload vacío en 'me'")
-            except Exception:
-                effective_id = str(user_info.get("id", user_id))
-                print(f"DEBUG LOGIN: Reintentando con ID específico: {effective_id}")
-                perms = user_service.get_permissions(effective_id)
-            
-            perm_service.set_permissions(perms)
-        except Exception as e:
-            LoggerService().log_error("Error cargando permisos en login", str(e))
-            # Si falla y no es admin, no podrá hacer nada (seguridad)
-            if not self.vm.auth_service.api.is_admin:
-                perm_service.set_permissions({"permisos": []})
-
-=======
-        except Exception as e:
-            self.loading_overlay.hide_loading()
-            self._set_error(f"Error de autorización: {str(e)}")
-            return
-
->>>>>>> Stashed changes
-        self.loading_overlay.hide_loading()
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
         self.main_window.show()
