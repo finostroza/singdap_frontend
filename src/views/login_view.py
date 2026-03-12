@@ -14,6 +14,7 @@ from PySide6.QtGui import QPixmap, QPalette, QColor
 from src.viewmodels.login_viewmodel import LoginViewModel
 from src.views.main_window import MainWindow
 from src.components.loading_overlay import LoadingOverlay
+from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
 from src.workers.jwt_utils import decode_jwt
 
@@ -177,13 +178,14 @@ class LoginView(QWidget):
 
         api = self.vm.auth_service.api
 
-        # Guardar token
+        # Guardamos el token
         api.set_token(access_token)
 
         # 🔓 Decodificar token
         try:
             payload = decode_jwt(access_token)
-            user_id =payload.get("sub")
+            user_id = payload.get("sub")
+            print(f"DEBUG LOGIN: JWT Payload (Token) -> {payload}")
 
             if not user_id:
                 raise ValueError("El token no contiene userId")
@@ -203,11 +205,37 @@ class LoginView(QWidget):
 
         self.hide()
 
+    def _reset_login_form(self):
+        """Limpia el formulario y devuelve el foco al usuario."""
+        self.user_input.clear()
+        self.password_input.clear()
+        self.user_input.setFocus()
+
 
 
     def _on_error(self, error: str):
         LoggerService().log_error("Fallo de inicio de sesión", error)
-        self._set_error(error)
+        
+        # 🚀 MENSAJE INSTITUCIONAL PARA ERROR DE CREDENCIALES O USUARIO NO EXISTENTE
+        # Se activa ante errores 401, 500, o fallos de autenticación generales.
+        custom_message = (
+            "<b>Estimada(o) Usuaria(o):</b><br><br>"
+            "El acceso al sistema se encuentra restringido a usuarios autorizados.<br><br>"
+            "Ud. ha ingresado mal su Usuario/Contraseña o su cuenta no se encuentra creada.<br><br>"
+            "Puede solicitar la creación de usuario correspondiente, enviando un correo electrónico a:<br><br>"
+            "<span style='color: #0072ce; font-weight: bold;'>📧 gobernanza-datos@desarrollosocial.gob.cl</span><br><br>"
+            "En su solicitud indique su nombre, unidad o departamento, y motivo de acceso."
+        )
+        
+        dialog = UserInactiveDialog(
+            title="Acceso Restringido",
+            message=custom_message,
+            parent=self
+        )
+        dialog.exec()
+        
+        # Resetear campos para privacidad y nuevo intento
+        self._reset_login_form()
 
     def _on_loading(self, loading: bool):
         self.login_button.setEnabled(not loading)

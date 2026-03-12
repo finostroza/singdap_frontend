@@ -22,7 +22,7 @@ from src.components.alert_dialog import AlertDialog
 from src.components.loading_overlay import LoadingOverlay
 from src.components.dialog_registry import get_dialog_class
 from src.services.user_service import UserService
-from src.workers.api_worker import ApiWorker
+from src.services.permission_service import PermissionService
 
 from utils import icon
 
@@ -52,6 +52,10 @@ class GenericGridView(QWidget):
         self.indicators_ui = {} # Map indicator field -> QLabel value
         self.columns = sorted(self.config["columnas"], key=lambda x: x.get("orden", 0))
         
+        # Security Service
+        self.permission_service = PermissionService()
+        self.perm_module = self.config.get("modulo_api", "").upper()
+
         # Build UI
         self._build_ui()
         
@@ -62,9 +66,16 @@ class GenericGridView(QWidget):
         QTimer.singleShot(0, self._init_async_filters)
         
         LoggerService().log_event(f"Usuario accedió a {self.config.get('titulo', 'Vista Genérica')}")
-        self._reload_all()
+        
         self.user_service = UserService()
         self._load_current_user()
+        
+        # Aplicar Bloqueo de Módulo si no tiene VER
+        print(f"DEBUG UI: Validando acceso al módulo '{self.perm_module}'...")
+        if not self.permission_service.has_module_access(self.perm_module):
+            self._show_permission_block()
+        else:
+            self._reload_all()
 
     def _load_current_user(self):
         def do_load():
@@ -89,8 +100,10 @@ class GenericGridView(QWidget):
             return json.load(f)
 
     def resizeEvent(self, event):
-        if hasattr(self, 'loading_overlay'):
+        if hasattr(self, 'loading_overlay') and self.loading_overlay:
             self.loading_overlay.resize(event.size())
+        if hasattr(self, 'table_overlay') and self.table_overlay:
+            self.table_overlay.setGeometry(self.table.rect())
         super().resizeEvent(event)
 
     # ======================================================
@@ -100,6 +113,7 @@ class GenericGridView(QWidget):
     def _build_ui(self):
         # Layout
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # 1. Header (Title + User/Date)
         header_top = QHBoxLayout()
@@ -134,7 +148,7 @@ class GenericGridView(QWidget):
             
             for ind in indicators:
                 card = self._create_stat_card(ind["titulo"], "0")
-                self.indicators_ui[ind["campo_api"]] = card.value_label
+                self.indicators_ui[ind["campo_api"]] = card
                 stats_layout.addWidget(card)
                 
             layout.addLayout(stats_layout)
@@ -221,8 +235,21 @@ class GenericGridView(QWidget):
             self.new_button = QPushButton(new_btn_config.get("texto", "+ Nuevo"))
             self.new_button.setObjectName("primaryButton")
             self.new_button.clicked.connect(self._open_new)
+            
+            # 🛡️ Permiso CREAR
+            if not self.permission_service.has_permission(self.perm_module, "CREAR"):
+                self.new_button.setEnabled(False)
+                self.new_button.setToolTip("No tiene permisos para crear registros")
+                self.new_button.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
+            
             filters_layout.addWidget(self.new_button)
             
+        # 🛡️ Permiso EXPORTAR (Botón General)
+        if not self.permission_service.has_permission(self.perm_module, "EXPORTAR"):
+            self.export_btn.setEnabled(False)
+            self.export_btn.setToolTip("No tiene permisos para exportar")
+            self.export_btn.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
+
         layout.addLayout(filters_layout)
         
         # 4. Table
@@ -252,7 +279,7 @@ class GenericGridView(QWidget):
         # Col Widths
         header_view = self.table.horizontalHeader()
         header_view.sectionClicked.connect(self._on_header_clicked)
-        header_view.setStretchLastSection(False)
+        header_view.setStretchLastSection(True)
         header_view.setMinimumSectionSize(90)
         for i, col in enumerate(columns):
             if not col.get("visible", True):
@@ -387,6 +414,10 @@ class GenericGridView(QWidget):
             
         # Task closure
         def fetch_task():
+            # 🛡️ Doble verificación de seguridad en VER
+            if not self.permission_service.has_module_access(self.perm_module):
+                return {"listado": [], "indicadores": None, "blocked": True}
+
             # Build URL
             base_url = self.config["endpoints"]["listado"]
             url = f"{base_url}?page={page}&size={size}"
@@ -613,10 +644,10 @@ class GenericGridView(QWidget):
                 
         for ind_config in self.config.get("indicadores", []):
             field = ind_config["campo_api"]
-            label = self.indicators_ui.get(field)
-            if label:
+            card = self.indicators_ui.get(field)
+            if card and hasattr(card, 'value_label'):
                 val = data.get(field, 0)
-                label.setText(str(val))
+                card.value_label.setText(str(val))
 
     def _invalidate_rat_catalog_cache_if_needed(self):
         # El catálogo de RAT se usa en EIPD; tras mutaciones en grilla RAT se debe refrescar.
@@ -640,13 +671,79 @@ class GenericGridView(QWidget):
             btn.setIcon(icon(action["icono"]))
             btn.setToolTip(action.get("tooltip", ""))
             
-            # Connect action
-            # We must bind default args carefully in loop
-            btn.clicked.connect(partial(self._execute_action, action, record_id))
+            # 🛡️ Verificación de Permisos por Acción
+            action_id = action.get("id", "").upper()
             
+            # Mapeo de IDs de config a permisos
+            perm_map = {
+                "EDITAR": "EDITAR",
+                "ELIMINAR": "ELIMINAR",
+                "APROBAR": "APROBAR",
+                "EXPORTAR": "EXPORTAR"
+            }
+            
+            target_perm = perm_map.get(action_id)
+            if target_perm and not self.permission_service.has_permission(self.perm_module, target_perm):
+                btn.setEnabled(False)
+                btn.setToolTip(f"Sin permiso para {target_perm.lower()}")
+                # Estética Gris sobre Gris solicitada
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #f1f5f9;
+                        border: none;
+                        border-radius: 4px;
+                        padding: 4px;
+                    }
+                    QPushButton:disabled {
+                        background-color: #f1f5f9;
+                        color: #94a3b8;
+                    }
+                """)
+                btn.setGraphicsEffect(None)
+            
+            # Connect action
+            btn.clicked.connect(partial(self._execute_action, action, record_id))
             l.addWidget(btn)
             
         self.table.setCellWidget(row, col_idx, w)
+
+    def _show_permission_block(self):
+        """Muestra un mensaje de bloqueo cuando el usuario no tiene permiso VER."""
+        overlay = QFrame(self.table)
+        overlay.setObjectName("permissionBlockOverlay")
+        overlay.setStyleSheet("""
+            QFrame#permissionBlockOverlay {
+                background-color: transparent;
+            }
+            QLabel {
+                color: #64748b;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """)
+        
+        l = QVBoxLayout(overlay)
+        l.setAlignment(Qt.AlignCenter)
+        
+        icon_label = QLabel()
+        icon_label.setPixmap(icon("src/resources/icons/lock.svg").pixmap(64, 64))
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        msg_label = QLabel("No tiene permisos para visualizar este módulo.")
+        msg_label.setAlignment(Qt.AlignCenter)
+        
+        contact_label = QLabel("Contacte al administrador para solicitar acceso.")
+        contact_label.setStyleSheet("font-size: 12px; font-weight: normal; margin-top: 8px;")
+        contact_label.setAlignment(Qt.AlignCenter)
+        
+        l.addWidget(icon_label)
+        l.addWidget(msg_label)
+        l.addWidget(contact_label)
+        
+        # Ajustar overlay al tamaño del área de tabla
+        overlay.setGeometry(self.table.rect())
+        overlay.show()
+        self.table_overlay = overlay
 
     def _execute_action(self, action_config, record_id):
         action_type = action_config.get("tipo")

@@ -1,5 +1,6 @@
 {
     "id": "trazabilidad",
+    "modulo_api": "TRAZABILIDAD",
     "titulo": "Trazabilidad de Consultas",
     "endpoints": {
         "listado": "/trazabilidad/consulta"

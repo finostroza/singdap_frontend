@@ -756,8 +756,10 @@ QLabel#userTextSelected {
 
 QLabel#statusBadgeActive,
 QLabel#statusBadgeInactive,
+QLabel#statusBadgePending,
 QPushButton#statusBadgeActive,
-QPushButton#statusBadgeInactive {
+QPushButton#statusBadgeInactive,
+QPushButton#statusBadgePending {
     border-radius: 14px;
     padding: 3px 9px;
     font-size: 12px;
@@ -795,6 +797,22 @@ QPushButton#statusBadgeActive:hover {
 
 QPushButton#statusBadgeInactive:hover {
     background: #FBCFE8;
+}
+
+QLabel#statusBadgePending {
+    background: #DBEAFE;
+    color: #1E3A8A;
+    border: 1px solid #BFDBFE;
+}
+
+QPushButton#statusBadgePending {
+    background: #DBEAFE;
+    color: #1E3A8A;
+    border: 1px solid #BFDBFE;
+}
+
+QPushButton#statusBadgePending:hover {
+    background: #BFDBFE;
 }
 
 QLabel#matrixHint {

@@ -1,5 +1,6 @@
 {
     "id": "eipd",
+    "modulo_api": "EIPD",
     "titulo": "Evaluaciones de Impacto (EIPD)",
     "endpoints": {
         "listado": "/eipd",

@@ -1,5 +1,6 @@
 {
     "id": "activos",
+    "modulo_api": "INVENTARIO",
     "titulo": "Inventario de Activos de Datos",
     "form_config": "src/config/formularios/activos.json",
     "endpoints": {

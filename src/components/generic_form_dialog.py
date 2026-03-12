@@ -869,17 +869,23 @@ class GenericFormDialog(QDialog):
 
         if ftype == "text":
             inp = QLineEdit()
-            inp.setStyleSheet("""
-                QLineEdit {
-                    background-color: white; 
+            
+            bg_color = "white"
+            if field.get("readonly", False):
+                inp.setReadOnly(True)
+                bg_color = "#f1f5f9"
+                
+            inp.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: {bg_color}; 
                     border: 1px solid #94a3b8; 
                     border-radius: 6px; 
                     padding: 4px 8px;
                     color: #0f172a;
-                }
-                QLineEdit:focus {
+                }}
+                QLineEdit:focus {{
                     border: 2px solid #2563eb;
-                }
+                }}
             """)
             return inp
 
@@ -1517,14 +1523,31 @@ class GenericFormDialog(QDialog):
         
         endpoint = self.config.get("endpoint")
 
-        # 🛡️ Mandatory Validation for Inventario (/activos)
-        if endpoint == "/activos":
+        # 🛡️ Validación estricta y obligatoria de campos y formato
+        if endpoint in ["/activos", "/users/complete-registration"]:
             missing = self._get_missing_required_fields()
+            
+            errors = []
             if missing:
-                LoggerService().log_error("Validación fallida: campos obligatorios faltantes", None)
+                errors.append("Por favor complete los siguientes campos requeridos antes de guardar:\n\n" + "\n".join(missing))
+                
+            if endpoint == "/users/complete-registration":
+                import re
+                nombre_val = payload.get("nombre", "")
+                email_val = payload.get("email", "")
+                
+                if nombre_val and len(nombre_val) < 3:
+                    errors.append("\n- El campo 'Nombre' debe tener al menos 3 caracteres.")
+                    
+                if email_val and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_val):
+                    errors.append("\n- El campo 'EMAIL' debe tener un formato válido (ejemplo@dominio.cl).")
+                    
+            if errors:
+                LoggerService().log_error("Validación fallida: campos obligatorios o formato incorrecto", None)
+                title = "Campos Obligatorios" if missing and len(errors) == 1 else "Validación de Formulario"
                 AlertDialog(
-                    title="Campos Obligatorios",
-                    message="Por favor complete los siguientes campos requeridos antes de guardar:\n\n" + "\n".join(missing),
+                    title=title,
+                    message="\n".join(errors),
                     icon_path="src/resources/icons/alert_error.svg",
                     confirm_text="Entendido",
                     parent=self
@@ -1536,11 +1559,23 @@ class GenericFormDialog(QDialog):
                 payload = self._apply_activo_create_defaults(payload)
             elif endpoint == "/eipd":
                 payload = self._apply_eipd_create_defaults(payload)
+            elif endpoint == "/users/complete-registration":
+                # Construcción del payload específico según requerimiento exacto de API
+                payload = {
+                    "nombre_completo": payload.get("nombre", ""),
+                    "email": payload.get("email", ""),
+                    "division_id": "f10ca70b-f37d-453b-acbb-b53cc7854fb4"
+                }
             else:
                 payload = self._apply_generic_required_defaults(payload)
         
         try:
-            if self.is_edit:
+            if endpoint == "/users/complete-registration":
+                user_id = self.asset_data.get("backend_id")
+                final_endpoint = f"/users/{user_id}/complete-registration"
+                self.api.put(final_endpoint, payload)
+                msg = "Registro completado con éxito."
+            elif self.is_edit:
                 self.api.put(f"{endpoint}/{self.record_id}", payload)
                 msg = f"{self.config.get('title_edit', 'Registro')} actualizado correctamente."
             else:
