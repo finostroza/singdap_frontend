@@ -17,6 +17,7 @@ from src.components.loading_overlay import LoadingOverlay
 from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
 from src.workers.jwt_utils import decode_jwt
+from src.services.permission_service import PermissionService
 
 
 
@@ -198,6 +199,19 @@ class LoginView(QWidget):
 
         LoggerService().init_session(str(user_id))
         LoggerService().log_event("Inicio de sesión exitoso")
+
+        # 🔐 Inicializar servicios de seguridad
+        perm_service = PermissionService()
+        perm_service.set_admin_status(api.is_admin)
+
+        if not api.is_admin:
+            try:
+                # Si no es admin, obtener matriz granular de permisos
+                perms_payload = api.get("/users/me/permisos")
+                perm_service.set_permissions(perms_payload)
+            except Exception as e:
+                LoggerService().log_error("Error cargando permisos", str(e))
+                # Continuamos, pero el usuario tendrá permisos vacíos (por seguridad)
 
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
