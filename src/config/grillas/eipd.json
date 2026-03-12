@@ -8,7 +8,8 @@
         "detalle": "/eipd/{id}",
         "crear": "/eipd",
         "editar": "/eipd/{id}",
-        "eliminar": "/eipd/{id}"
+        "eliminar": "/eipd/{id}",
+        "duplicar": "/eipd/{id}/nueva-version"
     },
     "campo_id": "id",
     "columnas": [
@@ -104,6 +105,17 @@
             "tipo": "dialog",
             "dialog_class": "EipdDialog",
             "orden": 1
+        },
+        {
+            "id": "duplicar",
+            "icono": "src/resources/icons/stickies.svg",
+            "tipo": "duplicate",
+            "tooltip": "Duplicar EIPD",
+            "orden": 3,
+            "visible_if": {
+                "campo": "estado_eipd",
+                "valor": "FINALIZADA"
+            }
         },
         {
             "id": "eliminar",

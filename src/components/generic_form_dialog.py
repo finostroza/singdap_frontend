@@ -1732,88 +1732,56 @@ class GenericFormDialog(QDialog):
         return payload
 
     def _build_eipd_payload(self):
-        # 1. Base fields
-        rat_id = None
-        w_rat = self.inputs.get("identificacion_rat_catalogo")
-        if w_rat and isinstance(w_rat, QComboBox):
-            rat_id = w_rat.currentData()
-
-        if not rat_id and self.asset_data:
-             rat_id = self.asset_data.get("rat_id")
-
-        payload = {
-            "rat_id": rat_id,
-            "creado_por": "e13f156d-4bde-41fe-9dfa-9b5a5478d257", # Hardcoded per original
-            "ambitos": [],
-            "riesgos": []
+        # 1. Build base payload with all fields (including Section 0)
+        # generic_payload handles all input types (text, files, combos, etc.)
+        payload = self._build_generic_payload()
+        
+        # 2. Restructure Ambitos (Section 1)
+        # These are individual fields in the form but nested in the API
+        ambitos_list = []
+        prefix_map = {
+            "LICITUD": "licitud",
+            "FINALIDAD": "finalidad",
+            "PROPORCIONABILIDAD": "proporcionabilidad",
+            "CALIDAD": "calidad",
+            "RESPONSABILIDAD": "responsabilidad",
+            "SEGURIDAD": "seguridad",
+            "TRANSPARENCIA": "transparencia",
+            "CONFIDENCIALIDAD": "confidencialidad",
+            "COORDINACION": "coordinacion"
         }
-
-        # 2. Ambitos (Flattened fields -> List)
-        # We process each known code
-        for ambito_name, ambito_code in AMBITO_CODES.items():
-            # Construct keys expected in the form
-            # e.g. licitud_group -> fields -> licitud_criterios
-            # We know the keys from the JSON config. 
-            # Pattern seems to be: {prefix}_criterios, {prefix}_resumen, etc.
-            
-            prefix = ambito_code.lower()
-            if prefix == "licitud": pass # Matches
-            elif prefix == "transparencia": pass # Matches
-            
-            # Correction: Config keys are slightly different from simple lower case code
-            # Let's map code to prefix manually to be safe, or direct lookup
-            
-            prefix_map = {
-                "LICITUD": "licitud",
-                "FINALIDAD": "finalidad",
-                "PROPORCIONABILIDAD": "proporcionabilidad",
-                "CALIDAD": "calidad",
-                "RESPONSABILIDAD": "responsabilidad",
-                "SEGURIDAD": "seguridad",
-                "TRANSPARENCIA": "transparencia",
-                "CONFIDENCIALIDAD": "confidencialidad",
-                "COORDINACION": "coordinacion"
-            }
-            
-            p = prefix_map.get(ambito_code)
+        
+        for name, code in AMBITO_CODES.items():
+            p = prefix_map.get(code)
             if not p: continue
+            
+            # Pop keys from payload root so they are not sent twice
+            criterios = payload.pop(f"{p}_criterios", "")
+            resumen = payload.pop(f"{p}_resumen", "")
+            prob = payload.pop(f"{p}_probabilidad", None)
+            imp = payload.pop(f"{p}_impacto", None)
+            
+            ambitos_list.append({
+                "ambito_codigo": code.lower(),
+                "criterios_evaluacion": criterios or "",
+                "resumen": resumen or "",
+                "probabilidad": prob,
+                "impacto": imp,
+                "nivel": self._calculate_risk_level(prob, imp)
+            })
+        
+        payload["ambitos"] = ambitos_list
 
-            # Extract specific fields for this ambito
-            # We use _get_input_value helper
-            
-            ambito_obj = {
-                "ambito_codigo": ambito_code.lower(),
-                "criterios_evaluacion": self._get_input_value(f"{p}_criterios") or "",
-                "resumen": self._get_input_value(f"{p}_resumen") or "",
-                "probabilidad": self._get_input_value(f"{p}_probabilidad"), # combo ID?
-                "impacto": self._get_input_value(f"{p}_impacto"),
-                "nivel": "Bajo" # Calculated or just default? Backend requires string. 
-                # Note: 'nivel' is not clearly in the form inputs for ambitos, maybe calculate from prob/imp?
-                # For now let's send "Desconocido" or calc if needed. 
-                # Looking at Schema: nivel: str. 
-            }
-            
-            # Simple calc logic or just send what we have? 
-            # The form has prob/impact combos.
-            # Let's assume we send the ID from the combo which are strings like "limitado", "maximo".
-            
-            # TODO: Should we calculate 'nivel'? Schema implies it's required.
-            # Let's simple-calc valid for now.
-            ambito_obj["nivel"] = self._calculate_risk_level(ambito_obj["probabilidad"], ambito_obj["impacto"])
-            
-            payload["ambitos"].append(ambito_obj)
-
-        # 3. Riesgos (Risk Matrix)
-        w_matrix = self.inputs.get("matriz_riesgos")
-        if w_matrix and isinstance(w_matrix, RiskMatrixWidget):
-            matrix_data = w_matrix.get_data()
-            for row in matrix_data:
-                # row has: ambito (name), descripcion, ...
+        # 3. Restructure Riesgos (Section 2 - Matrix)
+        raw_risks = payload.pop("matriz_riesgos", [])
+        formatted_risks = []
+        if isinstance(raw_risks, list):
+            for row in raw_risks:
                 name = row.get("ambito")
                 code = AMBITO_CODES.get(name)
                 if not code: continue 
                 
-                riesgo_obj = {
+                formatted_risks.append({
                     "ambito_codigo": code.lower(),
                     "descripcion": row.get("descripcion") or "",
                     "nivel_desarrollo": row.get("nivel_desarrollo") or "",
@@ -1821,9 +1789,20 @@ class GenericFormDialog(QDialog):
                     "probabilidad": row.get("probabilidad") or "",
                     "impacto": row.get("impacto") or "",
                     "nivel_riesgo": row.get("nivel_riesgo") or ""
-                }
-                payload["riesgos"].append(riesgo_obj)
-
+                })
+        payload["riesgos"] = formatted_risks
+        
+        # 4. Handle rat_id consistency
+        # In eipd.json Section 0, the key is 'identificacion_rat_catalogo'
+        rat_id = payload.pop("identificacion_rat_catalogo", None)
+        if not rat_id and self.asset_data:
+             rat_id = self.asset_data.get("rat_id")
+        
+        payload["rat_id"] = rat_id
+        
+        # The EIPD API expects 'creado_por' instead of 'creado_por_usuario_id'
+        payload["creado_por"] = payload.get("creado_por_usuario_id")
+        
         return payload
 
     def _sync_risk_matrix(self, prefix):
