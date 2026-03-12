@@ -22,14 +22,14 @@ class UserInactiveDialog(QDialog):
             )
 
         # ===============================
-        # Dialog base
+        # Configuracion base del dialogo
         # ===============================
         self.setModal(True)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedWidth(500)
         
-        # Main container with border radius and white background (via QSS)
+        # Contenedor principal con bordes redondeados y fondo blanco (asignado via QSS)
         self.container = QFrame(self)
         self.container.setObjectName("alertDialog")
         self.container.setFixedWidth(480)
@@ -40,8 +40,8 @@ class UserInactiveDialog(QDialog):
         icon_label = QLabel()
         icon_label.setAlignment(Qt.AlignCenter)
         
-        # Base dir relative to this file (src/components/user_inactive_dialog.py)
-        # We need to go up one level to src/, then find resources
+        # Obtenemos el directorio base relativo a este archivo para cargar los recursos 
+        # subiendo un nivel hacia 'src', donde se encuentra la carpeta de recursos.
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         icon_path = os.path.join(base_dir, "resources", "images", "app.ico")
         icon_label.setPixmap(QIcon(icon_path).pixmap(50, 50))
@@ -107,7 +107,7 @@ class UserInactiveDialog(QDialog):
         main_layout.addWidget(self.container, alignment=Qt.AlignCenter)
         
     def showEvent(self, event):
-        # Center dialog relative to parent
+        # Posicionamos el dialogo de alerta centrado en relacion a la ventana principal
         if self.parentWidget():
             parent_geo = self.parentWidget().geometry()
             self.move(

@@ -17,7 +17,10 @@ from src.components.loading_overlay import LoadingOverlay
 from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
 from src.services.user_service import UserService
+<<<<<<< Updated upstream
 from src.services.permission_service import PermissionService
+=======
+>>>>>>> Stashed changes
 from src.workers.jwt_utils import decode_jwt
 
 
@@ -180,9 +183,10 @@ class LoginView(QWidget):
 
         api = self.vm.auth_service.api
 
-        # Guardar token
+        # Guardamos el token
         api.set_token(access_token)
 
+        # Decodificamos el token para utilizar la información internamente
         try:
             payload = decode_jwt(access_token)
             user_id = payload.get("sub")
@@ -200,7 +204,7 @@ class LoginView(QWidget):
         LoggerService().init_session(str(user_id))
         LoggerService().log_event("Inicio de sesión exitoso")
 
-        # 🚀 VALIDACIÓN CRÍTICA: Bloqueo de acceso si el usuario está inhabilitado
+        # Validamos que el usuario se encuentre activo antes de permitir el ingreso
         self.loading_overlay.show_loading()
         try:
             user_service = UserService()
@@ -210,7 +214,8 @@ class LoginView(QWidget):
                 # Intentamos obtener los datos del usuario logueado
                 user_info = user_service.get_me()
             except Exception as e:
-                # Si el servidor responde 401 (Unauthorized), es un bloqueo definitivo del backend
+                # Si recibimos un error 401 (Unauthorized) al intentar consultar /me,
+                # lo tomamos como indicativo de que la cuenta no está activa.
                 if "401" in str(e):
                     self.loading_overlay.hide_loading()
                     dialog = UserInactiveDialog(self)
@@ -218,9 +223,9 @@ class LoginView(QWidget):
                     self._reset_login_form()
                     return
                 else:
-                    raise e
+                    raise e # Re-lanzar si es otro tipo de error
 
-            # Si el servidor responde OK, pero el campo is_active es False explícitamente
+            # Verificamos directamente el flag is_active en la respuesta
             if not user_info.get("is_active", False):
                 self.loading_overlay.hide_loading()
                 dialog = UserInactiveDialog(self)
@@ -228,6 +233,7 @@ class LoginView(QWidget):
                 self._reset_login_form()
                 return
 
+<<<<<<< Updated upstream
             print(f"DEBUG LOGIN: Datos completos del Usuario -> {user_info}")
 
         except Exception as e:
@@ -259,6 +265,13 @@ class LoginView(QWidget):
             if not self.vm.auth_service.api.is_admin:
                 perm_service.set_permissions({"permisos": []})
 
+=======
+        except Exception as e:
+            self.loading_overlay.hide_loading()
+            self._set_error(f"Error de autorización: {str(e)}")
+            return
+
+>>>>>>> Stashed changes
         self.loading_overlay.hide_loading()
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
