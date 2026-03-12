@@ -424,7 +424,10 @@ class GenericFormDialog(QDialog):
         # Dependency Config: key -> config
         # ... dependency map initialization ...
         self.visibility_map = {} # source_key -> list of {target_block, rule, key}
-        self.dependency_configs = {} # Was missing too if I removed it? Let's check previously. Yes I removed it.
+        self.dependency_configs = {}
+        self.labels = {}  # Registry for field labels
+        self.blocks = {}  # Registry for field block containers (QFrame)
+        self.footer_layouts = {} # index -> QHBoxLayout
 
         self._init_ui()
         
@@ -644,6 +647,9 @@ class GenericFormDialog(QDialog):
             # FIELD NORMAL
             # =========================
             field_block = QWidget()
+            field_block.setObjectName(f"fieldBlock_{field['key']}")
+            self.blocks[field['key']] = field_block
+            
             block_layout = QVBoxLayout(field_block)
             block_layout.setContentsMargins(0, 0, 0, 0)
             block_layout.setSpacing(6)
@@ -657,6 +663,10 @@ class GenericFormDialog(QDialog):
             lbl = QLabel(label_text)
             lbl.setStyleSheet("font-weight: bold; font-size: 14px; color: #1e293b;")
             label_layout.addWidget(lbl)
+            
+            # Registry for access in sub-classes
+            key = field["key"]
+            self.labels[key] = lbl
 
             if field.get("required", False):
                 req_lbl = QLabel("Obligatorio")
@@ -976,38 +986,43 @@ class GenericFormDialog(QDialog):
             # Identify the page widget for this section to check relative visibility
             page_widget = self.stack.widget(i)
             
-            for field in section.get("fields", []):
-                if field.get("required", False):
-                    key = field["key"]
-                    widget = self.inputs.get(key)
-                    
-                    try:
-                        # Check visibility relative to the page (handling hidden tabs)
-                        # If the field block was hidden by logic, isVisibleTo(page) will be False
-                        not_visible = False
-                        if not widget or not page_widget:
-                            not_visible = True
-                        elif not widget.isVisibleTo(page_widget):
-                            not_visible = True
-                            
-                        if not_visible:
-                             continue
-    
-                        total_req += 1
-                        if self._is_field_filled(widget, field):
-                            filled_req += 1
-                    except RuntimeError:
-                        continue # Object deleted during iteration
+            def process_fields(field_list):
+                nonlocal total_req, filled_req
+                for field in field_list:
+                    if field.get("type") == "group":
+                        process_fields(field.get("fields", []))
+                        continue
+
+                    if field.get("required", False):
+                        key = field["key"]
+                        widget = self.inputs.get(key)
+                        
+                        try:
+                            # Check visibility relative to the page (handling hidden tabs)
+                            not_visible = False
+                            if not widget or not page_widget:
+                                not_visible = True
+                            elif not widget.isVisibleTo(page_widget):
+                                not_visible = True
+                                
+                            if not_visible:
+                                 continue
+        
+                            total_req += 1
+                            if self._is_field_filled(widget, field):
+                                filled_req += 1
+                        except RuntimeError:
+                            continue
+
+            process_fields(section.get("fields", []))
             
             # Update Sidebar Step
             if i < len(self.sidebar.step_widgets):
-                step_widget = self.sidebar.step_widgets[i]
-                if hasattr(step_widget, "update_required_count"):
-                    try:
-                        step_widget.update_required_count(filled_req, total_req)
-                    except RuntimeError:
-                        pass
-                
+                try:
+                    self.sidebar.step_widgets[i].update_required_count(filled_req, total_req)
+                except (RuntimeError, AttributeError):
+                    pass
+            
             global_filled += filled_req
             global_total += total_req
 
@@ -1043,6 +1058,11 @@ class GenericFormDialog(QDialog):
                 self.progress_label.setText(f"Progreso: {percentage}% ({global_filled}/{global_total} campos requeridos)")
             except RuntimeError:
                 pass
+        
+        # Finally, update Footer of the last page (now that percentage/progress_bar are accurate)
+        last_idx = len(sections) - 1
+        if last_idx >= 0:
+            self._rebuild_footer(last_idx, is_last=True)
 
     def _get_missing_required_fields(self):
         """Returns a list of (label, section_title) for missing required fields that are currently visible."""
@@ -1053,23 +1073,30 @@ class GenericFormDialog(QDialog):
             section_title = section.get("title", f"Sección {i+1}")
             page_widget = self.stack.widget(i)
             
-            for field in section.get("fields", []):
-                if field.get("required", False):
-                    key = field["key"]
-                    widget = self.inputs.get(key)
-                    label = field.get("label", key)
-                    
-                    try:
-                        # Only validate if the field is visible (logic-driven visibility)
-                        if not widget or not page_widget:
-                            continue
-                        if not widget.isVisibleTo(page_widget):
-                            continue
-                            
-                        if not self._is_field_filled(widget, field):
-                            missing.append(f"- {label} ({section_title})")
-                    except RuntimeError:
+            def check_fields(field_list):
+                for field in field_list:
+                    if field.get("type") == "group":
+                        check_fields(field.get("fields", []))
                         continue
+
+                    if field.get("required", False):
+                        key = field["key"]
+                        widget = self.inputs.get(key)
+                        label = field.get("label", key)
+                        
+                        try:
+                            # Only validate if the field is visible (logic-driven visibility)
+                            if not widget or not page_widget:
+                                continue
+                            if not widget.isVisibleTo(page_widget):
+                                continue
+                                
+                            if not self._is_field_filled(widget, field):
+                                missing.append(f"- {label} ({section_title})")
+                        except RuntimeError:
+                            continue
+
+            check_fields(section.get("fields", []))
         return missing
 
     def _is_field_filled(self, widget, field):
@@ -1487,26 +1514,82 @@ class GenericFormDialog(QDialog):
         scroll.setWidget(content_widget)
         layout.addWidget(scroll, 1) 
         
-        # Footer
-        footer = QHBoxLayout()
+    def _clear_layout(self, layout):
+        if not layout:
+            return
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+            elif child.layout():
+                self._clear_layout(child.layout())
+
+    def _rebuild_footer(self, index, is_last):
+        layout = self.footer_layouts.get(index)
+        if not layout:
+            return
+
+        self._clear_layout(layout)
+
+        # Standard buttons
         if index > 0:
             prev_btn = QPushButton("Anterior")
             prev_btn.setObjectName("secondaryButton")
             prev_btn.clicked.connect(self.sidebar.prev_step)
-            footer.addWidget(prev_btn)
+            layout.addWidget(prev_btn)
         
-        footer.addStretch()
-        
-        if index < total - 1:
+        layout.addStretch()
+
+        if not is_last:
             next_btn = QPushButton("Siguiente")
             next_btn.setObjectName("primaryButton")
             next_btn.clicked.connect(self.sidebar.next_step)
-            footer.addWidget(next_btn)
+            layout.addWidget(next_btn)
         else:
+            # Default last page button
             save_btn = QPushButton("Guardar")
             save_btn.setObjectName("primaryButton")
             save_btn.clicked.connect(self._submit)
-            footer.addWidget(save_btn)
+            layout.addWidget(save_btn)
+
+    def _wrap_step_content(self, content_widget, title_text, desc_text, index, total):
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(20)
+        
+        # Header
+        header = QVBoxLayout()
+        t = QLabel(title_text)
+        t.setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;")
+        d = QLabel(desc_text)
+        d.setStyleSheet("font-size: 14px; color: #64748b;")
+        d.setWordWrap(True)
+        header.addWidget(t)
+        header.addWidget(d)
+        layout.addLayout(header)
+        
+        # Divider
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("background-color: #e2e8f0;")
+        line.setFixedHeight(1)
+        layout.addWidget(line)
+        
+        # Content
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(content_widget)
+        layout.addWidget(scroll, 1) 
+        
+        # Footer
+        footer = QHBoxLayout()
+        self.footer_layouts[index] = footer
+        
+        # Build initial footer
+        self._rebuild_footer(index, index == total - 1)
             
         layout.addLayout(footer)
         return container
@@ -1579,7 +1662,11 @@ class GenericFormDialog(QDialog):
                 self.api.put(f"{endpoint}/{self.record_id}", payload)
                 msg = f"{self.config.get('title_edit', 'Registro')} actualizado correctamente."
             else:
-                self.api.post(endpoint, payload)
+                res = self.api.post(endpoint, payload)
+                # Capture ID from response if possible
+                if isinstance(res, dict):
+                    self.record_id = res.get("id") or res.get("backend_id") or res.get("eipd_id")
+                
                 msg = f"{self.config.get('title_new', 'Registro')} creado correctamente."
 
             LoggerService().log_event(msg)
@@ -1711,6 +1798,9 @@ class GenericFormDialog(QDialog):
                 val = text if text else None
             elif isinstance(widget, QDateEdit):
                  val = widget.date().toString("yyyy-MM-dd")
+            elif isinstance(widget, (QPlainTextEdit, QTextEdit)):
+                 text = widget.toPlainText().strip()
+                 val = text if text else None
             elif isinstance(widget, FilePickerWidget):
                  text = widget.text().strip()
                  val = text if text else None

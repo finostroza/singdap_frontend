@@ -23,11 +23,177 @@ class EipdDialog(GenericFormDialog):
 
         target_id = eipd_id or kwargs.get("id") or kwargs.get("record_id")
 
+        # ⚠️ Inicializar ANTES de super().__init__ porque _rebuild_footer
+        # se llama dentro de _init_ui() que se ejecuta en el constructor padre
+        from src.core.api_client import ApiClient
+        client = ApiClient()
+        self.eipd_estado = "BORRADOR"
+        self._is_admin_user = client.is_admin
+
         super().__init__(str(config_path), parent=parent, record_id=target_id)
         self._catalog_label_cache = {}
 
         # Nivel en tiempo real (Section 1 labels)
         QTimer.singleShot(100, self._bind_niveles_en_tiempo_real)
+
+    # ------------------------------------------------------------------
+    # Data Loading
+    # ------------------------------------------------------------------
+    def _on_record_data(self, data):
+        self.eipd_estado = data.get("estado_eipd", "BORRADOR")
+        super()._on_record_data(data)
+
+        # Lock form if not editable
+        if self.eipd_estado in ["ENVIADO", "APROBADO", "RECHAZADO"]:
+            self._lock_form()
+        
+        # Trigger footer rebuild on the last page
+        last_idx = self.stack.count() - 1
+        self._rebuild_footer(last_idx, is_last=True)
+
+    def _lock_form(self):
+        for w in self.inputs.values():
+            if hasattr(w, "set_read_only"):
+                try:
+                    w.set_read_only(True)
+                except Exception:
+                    pass
+            w.setEnabled(False)
+
+    # ------------------------------------------------------------------
+    # Footer with state-based buttons
+    # ------------------------------------------------------------------
+    def _rebuild_footer(self, index, is_last):
+        # If it's not the last page, use default behavior
+        if not is_last:
+            super()._rebuild_footer(index, is_last)
+            return
+
+        layout = self.footer_layouts.get(index)
+        if not layout:
+            return
+
+        self._clear_layout(layout)
+
+        from PySide6.QtWidgets import QPushButton
+
+        # Anterior
+        if index > 0:
+            btn_prev = QPushButton("Anterior")
+            btn_prev.setObjectName("secondaryButton")
+            btn_prev.clicked.connect(self.sidebar.prev_step)
+            layout.addWidget(btn_prev)
+
+        layout.addStretch()
+
+        estado = self.eipd_estado
+        is_admin = self._is_admin_user
+
+        if estado in ["BORRADOR", "EN_PROCESO", "RECHAZADO"]:
+            # Guardar + Enviar
+            btn_guardar = QPushButton("Guardar")
+            btn_guardar.setObjectName("primaryButton")
+            btn_guardar.clicked.connect(self._submit)
+            layout.addWidget(btn_guardar)
+
+            btn_enviar = QPushButton("Enviar")
+            btn_enviar.setObjectName("dangerButton")
+
+            is_ready = False
+            if self.record_id:
+                try:
+                    total = self.progress_bar.maximum()
+                    filled = self.progress_bar.value()
+                    if total > 0 and filled >= total:
+                        is_ready = True
+                except (RuntimeError, AttributeError):
+                    pass
+
+            btn_enviar.setEnabled(is_ready)
+            if not is_ready:
+                btn_enviar.setToolTip(
+                    "Debe guardar y completar el 100% de los campos para enviar."
+                )
+
+            btn_enviar.clicked.connect(self._submit_enviar)
+            layout.addWidget(btn_enviar)
+
+        elif estado == "ENVIADO" and is_admin:
+            # Aprobar + Rechazar (admin only)
+            btn_aprobar = QPushButton("Aprobar")
+            btn_aprobar.setObjectName("successButton")
+            btn_aprobar.clicked.connect(self._aprobar_eipd)
+            layout.addWidget(btn_aprobar)
+
+            btn_rechazar = QPushButton("Rechazar")
+            btn_rechazar.setObjectName("dangerButton")
+            btn_rechazar.clicked.connect(self._mostrar_rechazo)
+            layout.addWidget(btn_rechazar)
+
+        # else: APROBADO or ENVIADO (non-admin) → no buttons, just "Anterior"
+
+    # ------------------------------------------------------------------
+    # State transitions
+    # ------------------------------------------------------------------
+    def _submit_enviar(self):
+        from PySide6.QtWidgets import QMessageBox, QApplication
+        from PySide6.QtCore import Qt
+
+        try:
+            res = QMessageBox.question(
+                self,
+                "Confirmar Envío",
+                "¿Está seguro que desea enviar el EIPD? Una vez enviado no podrá ser editado.",
+                QMessageBox.Yes | QMessageBox.No,
+            )
+            if res != QMessageBox.Yes:
+                return
+
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            self.api.put(
+                f"/eipd/{self.record_id}/estado", {"estado": "ENVIADO"}
+            )
+            QApplication.restoreOverrideCursor()
+
+            QMessageBox.information(
+                self, "EIPD Enviado",
+                "El EIPD ha sido enviado correctamente."
+            )
+            self.accept()
+
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(
+                self, "Error", f"No se pudo enviar el EIPD:\n{str(e)}"
+            )
+
+    def _aprobar_eipd(self):
+        from PySide6.QtWidgets import QMessageBox
+        self.api.put(
+            f"/eipd/{self.record_id}/estado", {"estado": "APROBADO"}
+        )
+        QMessageBox.information(
+            self, "EIPD Aprobado", "El EIPD ha sido aprobado."
+        )
+        self.accept()
+
+    def _mostrar_rechazo(self):
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+
+        comentario, ok = QInputDialog.getMultiLineText(
+            self,
+            "Rechazar EIPD",
+            "Ingrese el motivo del rechazo:",
+        )
+        if ok and comentario.strip():
+            self.api.put(
+                f"/eipd/{self.record_id}/estado",
+                {"estado": "RECHAZADO", "comentario": comentario},
+            )
+            QMessageBox.information(
+                self, "EIPD Rechazado", "El EIPD ha sido rechazado."
+            )
+            self.accept()
 
     # ------------------------------------------------------------------
     # RAT integration
@@ -303,7 +469,16 @@ class EipdDialog(GenericFormDialog):
             "exclusiones_analisis",
             "justificacion",
             "unidades_perfiles_acceso",
+            "diagrama_flujo_datos_personales",
         ]
+
+        # Visibility logic for Exclusiones (only for PROCESO)
+        tipo_rat = rat.get("tipo_rat")
+        is_proceso = (tipo_rat == "PROCESO")
+        
+        block_excl = self.blocks.get("exclusiones_analisis")
+        if block_excl:
+            block_excl.setVisible(is_proceso)
 
         for eipd_key in eipd_keys:
             widget = self.inputs.get(eipd_key)
@@ -329,6 +504,14 @@ class EipdDialog(GenericFormDialog):
                 elif value is not None:
                     widget.setPlainText(str(value))
                 widget.setReadOnly(eipd_key in readonly_keys)
+            
+            # Handle FilePickerWidget specifically if needed, 
+            # though it's usually not in RAT data
+            elif hasattr(widget, "setText") and not isinstance(widget, (QLineEdit, QPlainTextEdit)):
+                if value is not None:
+                    widget.setText(str(value))
+                if hasattr(widget, "setReadOnly"):
+                    widget.setReadOnly(eipd_key in readonly_keys)
 
             elif isinstance(widget, CheckableComboBox):
                 if isinstance(value, str):
