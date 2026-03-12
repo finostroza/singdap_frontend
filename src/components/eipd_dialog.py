@@ -286,7 +286,6 @@ class EipdDialog(GenericFormDialog):
             "categorias_datos_rat",
             "origen_recoleccion",
             "alcance_analisis",
-            "exclusiones_analisis",
             "conclusiones_rat",
             "justificacion",
         }
@@ -303,6 +302,7 @@ class EipdDialog(GenericFormDialog):
             "origen_recoleccion",
             "exclusiones_analisis",
             "justificacion",
+            "unidades_perfiles_acceso",
         ]
 
         for eipd_key in eipd_keys:
