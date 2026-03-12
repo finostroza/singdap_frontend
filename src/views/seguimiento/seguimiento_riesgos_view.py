@@ -43,14 +43,15 @@ class SeguimientoRiesgosView(QWidget):
         self.viewmodel.on_listado_ready.connect(self.listado_grid._populate_table if hasattr(self.listado_grid, '_populate_table') else lambda x: None)
         self.viewmodel.on_detalle_ready.connect(self._on_detalle_ready)
         self.viewmodel.on_actualizacion_exitosa.connect(self._on_update_success)
+        self.viewmodel.on_indicadores_ready.connect(self.listado_grid._populate_indicators)
         
         # Map to track which row has which form widget
         self.active_forms = {} # map row -> form_widget
 
         # ... (rest of init)
         if self.permission_service.has_module_access("SEGUIMIENTO"):
-            # GenericGridView handles its own load
-            pass
+            # Trigger initial load via ViewModel
+            self.viewmodel.cargar_listado()
         else:
             self._show_permission_block()
 
@@ -80,7 +81,7 @@ class SeguimientoRiesgosView(QWidget):
     def _on_back_requested(self):
         self.stack.setCurrentIndex(0)
         self.active_forms.clear()
-        self.listado_grid._reload_all()
+        self.viewmodel.cargar_listado()
 
     def _on_expand_requested(self, row, data, is_expanded):
         # We need to find the correct insertion point.
@@ -136,6 +137,8 @@ class SeguimientoRiesgosView(QWidget):
 
     def _on_update_success(self, message):
         QMessageBox.information(self, "Éxito", message)
+        # Refresh both the detail and the main list (for metrics and background update)
+        self.viewmodel.cargar_listado()
         self.viewmodel.cargar_detalle(self._current_tipo, self._current_id)
 
     def _show_permission_block(self):

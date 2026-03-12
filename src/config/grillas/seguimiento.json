@@ -6,6 +6,28 @@
         "listado": "/riesgos/seguimiento"
     },
     "campo_id": "id",
+    "indicadores": [
+        {
+            "campo_api": "rat_pendientes",
+            "titulo": "RAT por Subsanar",
+            "order": 1
+        },
+        {
+            "campo_api": "rat_subsanados",
+            "titulo": "RAT Subsanados",
+            "order": 2
+        },
+        {
+            "campo_api": "eipd_pendientes",
+            "titulo": "EIPD por Subsanar",
+            "order": 3
+        },
+        {
+            "campo_api": "eipd_subsanados",
+            "titulo": "EIPD Subsanados",
+            "order": 4
+        }
+    ],
     "columnas": [
         {
             "campo_api": "tipo",

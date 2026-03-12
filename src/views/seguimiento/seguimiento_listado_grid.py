@@ -11,6 +11,13 @@ class SeguimientoListadoGrid(GenericGridView):
         config_path = os.path.join(src_dir, "config", "grillas", "seguimiento.json")
         
         super().__init__(config_path=config_path, parent=parent)
+        # Disable internal reload to use ViewModel signals
+        try:
+            self.refresh_btn.clicked.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+            
+        self.refresh_btn.clicked.connect(lambda: self.parent().viewmodel.cargar_listado() if self.parent() and hasattr(self.parent(), 'viewmodel') else self._reload_all())
 
     def _execute_action(self, action_config, record_id):
         action_id = action_config.get("id")
