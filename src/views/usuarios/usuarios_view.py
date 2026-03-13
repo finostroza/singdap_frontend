@@ -779,18 +779,20 @@ class UsuariosView(QWidget):
         is_currently_active = user.get("status", "Inactivo") == "Activo"
         next_active = not is_currently_active
 
-        if next_active:
-            msg = f"Confirmar activación de NOMBRE : {user.get('name', 'N/A')},  RUT : {user.get('id', 'N/A')}"
-            dialog = AlertDialog(
-                title="Confirmar Activación",
-                message=msg,
-                icon_path="src/resources/icons/alert_warning.svg",
-                confirm_text="Confirmar",
-                cancel_text="Cancelar",
-                parent=self
-            )
-            if not dialog.exec():
-                return
+        accion_str = "activación" if next_active else "desactivación"
+        titulo_str = "Confirmar Activación" if next_active else "Confirmar Desactivación"
+        
+        msg = f"Confirmar {accion_str} de NOMBRE : {user.get('name', 'N/A')}, RUT : {user.get('id', 'N/A')}"
+        dialog = AlertDialog(
+            title=titulo_str,
+            message=msg,
+            icon_path="src/resources/icons/alert_warning.svg",
+            confirm_text="Confirmar",
+            cancel_text="Cancelar",
+            parent=self
+        )
+        if not dialog.exec():
+            return
 
         self.loading_overlay.show_loading()
 

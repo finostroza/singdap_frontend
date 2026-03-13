@@ -49,21 +49,20 @@ class AlertDialog(QDialog):
         message_label.setWordWrap(True)
         message_label.setObjectName("alertMessage")
 
-        # ===============================
-        # Buttons
-        # ===============================
-        cancel_btn = QPushButton(cancel_text)
-        cancel_btn.setObjectName("alertCancel")
-        cancel_btn.clicked.connect(self.reject)
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(12)
+        buttons_layout.addStretch()
+        
+        if cancel_text:
+            cancel_btn = QPushButton(cancel_text)
+            cancel_btn.setObjectName("alertCancel")
+            cancel_btn.clicked.connect(self.reject)
+            buttons_layout.addWidget(cancel_btn)
 
         confirm_btn = QPushButton(confirm_text)
         confirm_btn.setObjectName("alertConfirm")
         confirm_btn.clicked.connect(self.accept)
-
-        buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(12)
-        buttons_layout.addStretch()
-        buttons_layout.addWidget(cancel_btn)
+        
         buttons_layout.addWidget(confirm_btn)
         buttons_layout.addStretch()
 

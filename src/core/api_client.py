@@ -19,7 +19,8 @@ class ApiClient:
             
         self.base_url = API_BASE_URL.rstrip('/')
         self.token = None
-        self.user_id = None   
+        self.user_id = None
+        self.rol_ris = None
         self._initialized = True
 
     def set_token(self, token: str):
@@ -53,9 +54,13 @@ class ApiClient:
     def set_user_id(self, user_id: str):
         self.user_id = user_id
 
+    def set_rol_ris(self, rol_ris: str):
+        self.rol_ris = rol_ris
+
     def clear_session(self):
         self.token = None
         self.user_id = None
+        self.rol_ris = None
 
     def _headers(self):
         headers = {

@@ -213,6 +213,13 @@ class LoginView(QWidget):
                 LoggerService().log_error("Error cargando permisos", str(e))
                 # Continuamos, pero el usuario tendrá permisos vacíos (por seguridad)
 
+        # Obtener rol_ris del usuario para controlar visibilidad de módulos como Usuarios / Roles
+        try:
+            me_data = api.get("/users/me")
+            api.set_rol_ris(me_data.get("rol_ris") or "")
+        except Exception:
+            api.set_rol_ris("")
+
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)
         self.main_window.show()
@@ -230,23 +237,60 @@ class LoginView(QWidget):
     def _on_error(self, error: str):
         LoggerService().log_error("Fallo de inicio de sesión", error)
         
-        # 🚀 MENSAJE INSTITUCIONAL PARA ERROR DE CREDENCIALES O USUARIO NO EXISTENTE
-        # Se activa ante errores 401, 500, o fallos de autenticación generales.
-        custom_message = (
-            "<b>Estimada(o) Usuaria(o):</b><br><br>"
-            "El acceso al sistema se encuentra restringido a usuarios autorizados.<br><br>"
-            "Ud. ha ingresado mal su Usuario/Contraseña o su cuenta no se encuentra creada.<br><br>"
-            "Puede solicitar la creación de usuario correspondiente, enviando un correo electrónico a:<br><br>"
-            "<span style='color: #0072ce; font-weight: bold;'>📧 gobernanza-datos@desarrollosocial.gob.cl</span><br><br>"
-            "En su solicitud indique su nombre, unidad o departamento, y motivo de acceso."
-        )
+        from src.components.alert_dialog import AlertDialog
         
-        dialog = UserInactiveDialog(
-            title="Acceso Restringido",
-            message=custom_message,
-            parent=self
-        )
-        dialog.exec()
+        if error == "CONNECTION_ERROR":
+            dialog = AlertDialog(
+                title="Error de Conexión",
+                message="No se ha podido establecer conexión con el servidor. Verifique su red e intente nuevamente.",
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Reintentar",
+                cancel_text="",
+                parent=self
+            )
+            dialog.exec()
+
+        elif error == "INACTIVE_USER":
+            custom_message = (
+                "<b>Estimada(o) Usuaria(o):</b><br><br>"
+                "El acceso al sistema se encuentra Inhabilitado/Desactivado para usted en estos momentos.<br>"
+                "Si usted requiere acceso a la plataforma, debe solicitar la Activación correspondiente enviando un correo electrónico a:<br><br>"
+                "<span style='color: #0072ce; font-weight: bold;'>📧 gobernanza-datos@desarrollosocial.gob.cl</span><br><br>"
+                "En su solicitud indique su nombre, unidad o departamento, y motivo de acceso."
+            )
+            dialog = UserInactiveDialog(
+                title="Acceso Inhabilitado",
+                message=custom_message,
+                parent=self
+            )
+            dialog.exec()
+
+        elif error == "NOT_FOUND":
+            custom_message = (
+                "<b>Estimada(o) Usuaria(o):</b><br><br>"
+                "El acceso al sistema se encuentra restringido a usuarios autorizados.<br>"
+                "Si usted requiere acceso a la plataforma, debe solicitar la habilitación correspondiente enviando un correo electrónico a:<br><br>"
+                "<span style='color: #0072ce; font-weight: bold;'>📧 gobernanza-datos@desarrollosocial.gob.cl</span><br><br>"
+                "En su solicitud indique su nombre, unidad o departamento, y motivo de acceso."
+            )
+            dialog = UserInactiveDialog(
+                title="Acceso Restringido",
+                message=custom_message,
+                parent=self
+            )
+            dialog.exec()
+
+        else:
+            # Fallback para SSO_FAILED u otros errores
+            dialog = AlertDialog(
+                title="Autenticación Fallida",
+                message="Problema de Usuario y/o Contraseña.",
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Aceptar",
+                cancel_text="",
+                parent=self
+            )
+            dialog.exec()
         
         # Resetear campos para privacidad y nuevo intento
         self._reset_login_form()
