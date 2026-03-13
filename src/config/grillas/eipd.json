@@ -114,7 +114,7 @@
             "orden": 3,
             "visible_if": {
                 "campo": "estado_eipd",
-                "valor": "FINALIZADA"
+                "valor": "APROBADO"
             }
         },
         {

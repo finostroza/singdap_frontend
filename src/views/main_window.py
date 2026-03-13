@@ -24,8 +24,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("SINGDAP - Sistema de Inventario")
-        self.setMinimumSize(1366, 768)
-        self.resize(1440, 850)
+        self.setMinimumSize(1500, 768)
+        self.resize(1600, 900)
 
         # ===============================
         # Container principal
