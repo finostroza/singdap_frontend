@@ -1059,10 +1059,6 @@ class GenericFormDialog(QDialog):
             except RuntimeError:
                 pass
         
-        # Finally, update Footer of the last page (now that percentage/progress_bar are accurate)
-        last_idx = len(sections) - 1
-        if last_idx >= 0:
-            self._rebuild_footer(last_idx, is_last=True)
 
     def _get_missing_required_fields(self):
         """Returns a list of (label, section_title) for missing required fields that are currently visible."""
@@ -1482,38 +1478,7 @@ class GenericFormDialog(QDialog):
              if val:
                  self._set_combo_value(combo, val)
                  
-    def _wrap_step_content(self, content_widget, title_text, desc_text, index, total):
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        
-        # Header
-        header = QVBoxLayout()
-        t = QLabel(title_text)
-        t.setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;")
-        d = QLabel(desc_text)
-        d.setStyleSheet("font-size: 14px; color: #64748b;")
-        d.setWordWrap(True)
-        header.addWidget(t)
-        header.addWidget(d)
-        layout.addLayout(header)
-        
-        # Divider
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        line.setStyleSheet("background-color: #e2e8f0;")
-        line.setFixedHeight(1)
-        layout.addWidget(line)
-        
-        # Content
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setWidget(content_widget)
-        layout.addWidget(scroll, 1) 
-        
+    
     def _clear_layout(self, layout):
         if not layout:
             return
@@ -1546,7 +1511,7 @@ class GenericFormDialog(QDialog):
             next_btn.clicked.connect(self.sidebar.next_step)
             layout.addWidget(next_btn)
         else:
-            # Default last page button
+            # The Save button is only in the footer
             save_btn = QPushButton("Guardar")
             save_btn.setObjectName("primaryButton")
             save_btn.clicked.connect(self._submit)
