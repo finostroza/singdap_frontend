@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QSizePolicy,
     QHBoxLayout,
+    QFrame,
     QDialog,
     QApplication,
 )
@@ -54,6 +55,14 @@ class Sidebar(QWidget):
                     Qt.SmoothTransformation
                 )
             )
+
+        self.logo_container = QFrame()
+        self.logo_container.setObjectName("sidebarLogoContainer")
+        self.logo_container.setAttribute(Qt.WA_StyledBackground, True)
+        self.logo_container.setStyleSheet("background-color: #ffffff;")
+        logo_container_layout = QVBoxLayout(self.logo_container)
+        logo_container_layout.setContentsMargins(12, 16, 12, 16)
+        logo_container_layout.addWidget(self.logo)
 
         # ===============================
         # Toggle + Title
@@ -154,19 +163,28 @@ class Sidebar(QWidget):
         # Layout principal
         # ===============================
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 16, 12, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(0, 0, 0, 16)
+        layout.setSpacing(0)
 
-        layout.addWidget(self.logo)
-        layout.addSpacing(8)
-        layout.addLayout(title_row)
-        layout.addSpacing(24)
+        # Logo: ocupa el ancho completo del sidebar
+        layout.addWidget(self.logo_container)
+
+        # Contenido con márgenes laterales
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(12, 12, 12, 0)
+        content_layout.setSpacing(10)
+
+        content_layout.addSpacing(4)
+        content_layout.addLayout(title_row)
+        content_layout.addSpacing(24)
 
         for btn in self.nav_buttons:
-            layout.addWidget(btn)
+            content_layout.addWidget(btn)
 
-        layout.addStretch()
-        layout.addWidget(self.logout_btn)
+        content_layout.addStretch()
+        content_layout.addWidget(self.logout_btn)
+
+        layout.addLayout(content_layout)
 
     # ===============================
     # Nav button helper
@@ -202,7 +220,7 @@ class Sidebar(QWidget):
     def _update_visibility(self):
         show_text = not self.is_collapsed
 
-        self.logo.setVisible(show_text)
+        self.logo_container.setVisible(show_text)
         self.title.setVisible(show_text)
 
         for btn in self.nav_buttons:

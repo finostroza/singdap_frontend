@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("SINGDAP - Sistema de Inventario")
+        self.setWindowTitle("SINGDAP- Sistema de Inventario y Gestión de Datos Personales")
         self.setMinimumSize(1500, 768)
         self.resize(1600, 900)
 
