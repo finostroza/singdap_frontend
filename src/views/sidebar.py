@@ -21,6 +21,7 @@ from utils import icon, resource_path
 
 class Sidebar(QWidget):
     logout_requested = Signal()
+    home_requested = Signal()
     def __init__(self):
         super().__init__()
 
@@ -45,6 +46,8 @@ class Sidebar(QWidget):
         self.logo = QLabel()
         self.logo.setObjectName("sidebarLogo")
         self.logo.setAlignment(Qt.AlignCenter)
+        self.logo.setCursor(Qt.PointingHandCursor)
+        self.logo.mousePressEvent = lambda _: self.home_requested.emit()
 
         logo_path = resource_path("src/resources/images/logo_gobierno.png")
         pixmap = QPixmap(str(logo_path))
@@ -86,10 +89,16 @@ class Sidebar(QWidget):
         # ===============================
         # Navigation buttons
         # ===============================
+        self.btn_home = self._nav_button(
+            "Home",
+            "src/resources/icons/home_white.svg",
+            active=True,
+        )
+
         self.btn_inventario = self._nav_button(
             "Inventario",
             "src/resources/icons/inventory.svg",
-            active=True,
+            active=False,
         )
 
         self.btn_rat = self._nav_button(
@@ -123,6 +132,7 @@ class Sidebar(QWidget):
         )
 
         self.nav_buttons = [
+            self.btn_home,
             self.btn_inventario,
             self.btn_rat,
             self.btn_eipd,

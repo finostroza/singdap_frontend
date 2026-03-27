@@ -1,12 +1,110 @@
 {
     "sections": [
         {
-            "title": "0. Placeholder",
-            "fields": []
-        },
-        {
-            "title": "1. Placeholder",
-            "fields": []
+            "title": "1. Identificación general del tratamiento",
+            "description": "Antecedentes principales para individualizar el tratamiento y sus responsables.",
+            "fields": [
+                {
+                    "key": "nombre_tratamiento",
+                    "label": "Nombre del tratamiento",
+                    "description": "Ingrese denominación del tratamiento de datos personales.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "tipo_tratamiento",
+                    "label": "Tipo de tratamiento",
+                    "description": "Seleccione el tipo de tratamiento (seleccione solo 1 de las opciones)",
+                    "type": "combo",
+                    "source": "/catalogos/rat/tipo-tratamiento",
+                    "cache_key": "catalogo_rat_tipo_tratamiento",
+                    "required": true
+                },
+                {
+                    "key": "subsecretaria",
+                    "label": "Subsecretaria",
+                    "description": "Seleccione la unidad responsable.",
+                    "type": "combo",
+                    "source": "/setup/subsecretarias",
+                    "cache_key": "catalogo_subsecretarias",
+                    "triggers_reload": [
+                        "division"
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "division",
+                    "label": "División",
+                    "description": "División organizacional a la cual se adscribe el responsable.",
+                    "type": "combo",
+                    "cache_key": "catalogo_divisiones_v2",
+                    "depends_on": "subsecretaria",
+                    "dependency_endpoint_template": "/setup/divisiones?subsecretaria_id={value}",
+                    "triggers_reload": [
+                        "departamento"
+                    ],
+                    "required": true
+                },
+                {
+                    "key": "departamento",
+                    "label": "Departamento",
+                    "type": "combo",
+                    "cache_key": "catalogo_departamentos_v2",
+                    "depends_on": "division",
+                    "dependency_endpoint_template": "/setup/departamentos?division_id={value}",
+                    "required": true
+                },
+                {
+                    "key": "nombre_responsable",
+                    "label": "Nombre Responsable del tratamiento",
+                    "description": "Indique 1 encargado (persona y datos de contacto).",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "cargo_responsable",
+                    "label": "Cargo responsable del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "email_responsable",
+                    "label": "Email responsable del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "telefono_responsable",
+                    "label": "Teléfono responsable del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "nombre_encargado",
+                    "label": "Nombre Encargado(s) del tratamiento",
+                    "description": "Indique 1 o más encargados (personas/unidades) según corresponda.",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "cargo_encargado",
+                    "label": "Cargo encargado del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "email_encargado",
+                    "label": "Email encargado del tratamiento",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "telefono_encargado",
+                    "label": "Telefono encargado del tratamiento",
+                    "type": "text",
+                    "required": true
+                }
+            ]
         },
         {
             "title": "2. Descripción del tratamiento",
@@ -249,6 +347,43 @@
                     "label": "Justificación",
                     "description": "Fundamento técnico y normativo de la decisión.",
                     "type": "textarea",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "11. Gobierno de Datos",
+            "description": "Metadatos del documento RAT.",
+            "fields": [
+                {
+                    "key": "fecha_elaboracion",
+                    "label": "Fecha de elaboración",
+                    "type": "text",
+                    "control": "calendar",
+                    "required": true
+                },
+                {
+                    "key": "responsable_informe",
+                    "label": "Responsable del Informe",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "equipo_entrevistados",
+                    "label": "Equipo de entrevistados",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "equipo_validacion",
+                    "label": "Equipo de validación de contenidos",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "revision_aprobacion",
+                    "label": "Revisión y aprobación final",
+                    "type": "text",
                     "required": true
                 }
             ]

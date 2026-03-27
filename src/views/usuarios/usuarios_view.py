@@ -63,7 +63,6 @@ class UsuariosView(QWidget):
             ("Usuarios / Roles", "USUARIOS"),
             ("RAT", "RAT"),
             ("Trazabilidad", "TRAZABILIDAD"),
-            ("Mantenedores", "MANTENEDORES"),
         ]
 
         self.module_aliases = {
@@ -72,7 +71,6 @@ class UsuariosView(QWidget):
             "USUARIOS": ["usuario", "usuarios", "rol", "roles"],
             "RAT": ["rat"],
             "TRAZABILIDAD": ["trazabilidad"],
-            "MANTENEDORES": ["mantenedor", "catalogo", "catalogos", "catalog"],
         }
 
         self.privilege_name_by_code = {}
@@ -721,11 +719,23 @@ class UsuariosView(QWidget):
 
         badges_layout.addWidget(status)
 
+        btn_delete = QPushButton("Eliminar")
+        btn_delete.setObjectName("statusBadgeDanger")
+        btn_delete.setCursor(Qt.PointingHandCursor if self.api.is_admin else Qt.ArrowCursor)
+        btn_delete.setEnabled(self.api.is_admin and bool(user.get("backend_id")))
+        btn_delete.clicked.connect(
+            lambda _checked=False, idx=user_index: self._on_delete_user_clicked(idx)
+        )
+        badges_layout.addWidget(btn_delete)
+
         right = QVBoxLayout()
+        right.setSpacing(4) # Espaciado más ajustado entre botones
         right.setAlignment(Qt.AlignTop | Qt.AlignRight)
         right.addLayout(badges_layout)
-        right.addStretch()
-        right.addWidget(packs, alignment=Qt.AlignRight)
+        
+        if packs_count > 0:
+            right.addStretch()
+            right.addWidget(packs, alignment=Qt.AlignRight)
 
         layout = QHBoxLayout(card)
         layout.setContentsMargins(12, 8, 12, 8)
@@ -805,6 +815,76 @@ class UsuariosView(QWidget):
         )
         self.status_toggle_worker.error.connect(self._on_toggle_user_status_error)
         self.status_toggle_worker.start()
+
+    def _on_delete_user_clicked(self, user_index):
+        if not self.api.is_admin:
+            return
+        if user_index < 0 or user_index >= len(self.users_data):
+            return
+
+        user = self.users_data[user_index]
+        backend_id = user.get("backend_id")
+        if not backend_id:
+            # Si no hay backend_id (ej: usuario mockup o no registrado), solo borramos localmente
+            msg = f"¿Está seguro de eliminar este registro local?\n\nNombre: {user.get('name')}\nRUT: {user.get('id')}"
+            dialog = AlertDialog(
+                title="Confirmar Eliminación",
+                message=msg,
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Eliminar",
+                cancel_text="Cancelar",
+                parent=self
+            )
+            if dialog.exec():
+                self.users_data.pop(user_index)
+                self.current_user_index = 0
+                self._populate_user_list()
+            return
+
+        msg = f"¿Está seguro de eliminar definitivamente a este usuario?\n\nNombre: {user.get('name')}\nRUT: {user.get('id')}\n\nEsta acción NO se puede deshacer."
+        dialog = AlertDialog(
+            title="Confirmar Eliminación Definitiva",
+            message=msg,
+            icon_path="src/resources/icons/alert_warning.svg",
+            confirm_text="Eliminar Permanentemente",
+            cancel_text="Cancelar",
+            parent=self
+        )
+        if not dialog.exec():
+            return
+
+        self.loading_overlay.show_loading()
+
+        def do_delete():
+            return self.user_service.delete_user(backend_id)
+
+        worker = ApiWorker(do_delete)
+        self.active_workers.append(worker)
+        worker.finished.connect(lambda _, idx=user_index: self._on_delete_user_success(idx))
+        worker.error.connect(self._on_delete_user_error)
+        worker.start()
+
+    def _on_delete_user_success(self, user_index):
+        self.loading_overlay.hide_loading()
+        if 0 <= user_index < len(self.users_data):
+            self.users_data.pop(user_index)
+            self.current_user_index = 0
+            self._populate_user_list()
+            if self.users_data:
+                self._update_matrix_for_user(0)
+            
+            # Limpiar cache local de este usuario
+            user_cache_id = self._user_cache_id({"backend_id": None, "id": None}) # Dummy call to get logic
+            # En realidad mejor recargar todo
+            self._load_backend_data()
+
+    def _on_delete_user_error(self, error):
+        self.loading_overlay.hide_loading()
+        QMessageBox.warning(
+            self,
+            "Error",
+            f"No fue posible eliminar el usuario.\n\nDetalle: {error}",
+        )
 
     def _on_toggle_user_status_success(self, user_index, result):
         self.loading_overlay.hide_loading()

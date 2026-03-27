@@ -129,7 +129,7 @@
                     "key": "procesos_vinculados",
                     "label": "Procesos vinculados",
                     "description": "Vinculación con procesos institucionales o de negocio.",
-                    "type": "combo",
+                    "type": "radio_combo",
                     "source": "/catalogos/procesos-vinculados",
                     "cache_key": "catalogo_procesos_vinculados",
                     "required": false

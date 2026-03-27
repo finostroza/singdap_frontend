@@ -759,7 +759,8 @@ QLabel#statusBadgeInactive,
 QLabel#statusBadgePending,
 QPushButton#statusBadgeActive,
 QPushButton#statusBadgeInactive,
-QPushButton#statusBadgePending {
+QPushButton#statusBadgePending,
+QPushButton#statusBadgeDanger {
     border-radius: 14px;
     padding: 3px 9px;
     font-size: 12px;
@@ -813,6 +814,16 @@ QPushButton#statusBadgePending {
 
 QPushButton#statusBadgePending:hover {
     background: #BFDBFE;
+}
+
+QPushButton#statusBadgeDanger {
+    background: #FEE2E2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+}
+
+QPushButton#statusBadgeDanger:hover {
+    background: #FCA5A5;
 }
 
 QLabel#matrixHint {

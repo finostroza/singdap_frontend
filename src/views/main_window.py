@@ -16,6 +16,7 @@ from src.views.dashboard.dashboard_view import DashboardView
 from src.viewmodels.dashboard_viewmodel import DashboardViewModel
 from src.views.seguimiento.seguimiento_riesgos_view import SeguimientoRiesgosView
 from src.services.permission_service import PermissionService
+from src.views.home.home_view import HomeView
 
 
 class MainWindow(QMainWindow):
@@ -47,6 +48,7 @@ class MainWindow(QMainWindow):
 
         from src.viewmodels.seguimiento_viewmodel import SeguimientoViewModel
         
+        self.home_view = HomeView()
         self.activos_view = ActivosView()
         self.rat_view = RatView()
         self.eipd_view = EipdView()
@@ -56,13 +58,14 @@ class MainWindow(QMainWindow):
         self.dashboard_view = DashboardView(DashboardViewModel())
 
         # Stack indexes (Matching Sidebar order)
-        self.stack.addWidget(self.activos_view)        # 0
-        self.stack.addWidget(self.rat_view)            # 1
-        self.stack.addWidget(self.eipd_view)           # 2
-        self.stack.addWidget(self.seguimiento_view)    # 3
-        self.stack.addWidget(self.trazabilidad_view)   # 4
-        self.stack.addWidget(self.usuarios_view)       # 5
-        self.stack.addWidget(self.dashboard_view)      # 6
+        self.stack.addWidget(self.home_view)           # 0
+        self.stack.addWidget(self.activos_view)        # 1
+        self.stack.addWidget(self.rat_view)            # 2
+        self.stack.addWidget(self.eipd_view)           # 3
+        self.stack.addWidget(self.seguimiento_view)    # 4
+        self.stack.addWidget(self.trazabilidad_view)   # 5
+        self.stack.addWidget(self.usuarios_view)       # 6
+        self.stack.addWidget(self.dashboard_view)      # 7
 
         # ===============================
         # Layout
@@ -79,54 +82,48 @@ class MainWindow(QMainWindow):
         # ===============================
         # Navegación (ALINEADA AL SIDEBAR)
         # ===============================
-        self.sidebar.btn_inventario.clicked.connect(
+        self.sidebar.home_requested.connect(
             lambda: self._navigate(0, 0)
         )
 
-        self.sidebar.btn_rat.clicked.connect(
+        self.sidebar.btn_home.clicked.connect(
+            lambda: self._navigate(0, 0)
+        )
+
+        self.sidebar.btn_inventario.clicked.connect(
             lambda: self._navigate(1, 1)
         )
 
-        self.sidebar.btn_eipd.clicked.connect(
+        self.sidebar.btn_rat.clicked.connect(
             lambda: self._navigate(2, 2)
         )
 
-        self.sidebar.btn_seguimiento.clicked.connect(
+        self.sidebar.btn_eipd.clicked.connect(
             lambda: self._navigate(3, 3)
         )
 
-        self.sidebar.btn_trazabilidad.clicked.connect(
+        self.sidebar.btn_seguimiento.clicked.connect(
             lambda: self._navigate(4, 4)
         )
 
-        self.sidebar.btn_roles.clicked.connect(
+        self.sidebar.btn_trazabilidad.clicked.connect(
             lambda: self._navigate(5, 5)
         )
 
-        self.sidebar.btn_dashboard.clicked.connect(
+        self.sidebar.btn_roles.clicked.connect(
             lambda: self._navigate(6, 6)
+        )
+
+        self.sidebar.btn_dashboard.clicked.connect(
+            lambda: self._navigate(7, 7)
         )
 
         # ===============================
         # Estado inicial
         # ===============================
         perm_service = PermissionService()
-        if perm_service.has_module_access("INVENTARIO"):
-            self._navigate(0, 0)
-        elif perm_service.has_module_access("RAT"):
-            self._navigate(1, 1)
-        elif perm_service.has_module_access("EIPD"):
-            self._navigate(2, 2)
-        elif perm_service.has_module_access("SEGUIMIENTO"):
-            self._navigate(3, 3)
-        elif perm_service.has_module_access("TRAZABILIDAD"):
-            self._navigate(4, 4)
-        elif perm_service.has_module_access("USUARIOS"):
-            self._navigate(5, 5)
-        elif perm_service.has_module_access("DASHBOARD"):
-            self._navigate(6, 6)
-        else:
-            self._navigate(0, 0)
+        # Home es la vista por defecto ahora
+        self._navigate(0, 0)
         
         self.sidebar.logout_requested.connect(self._on_logout_requested)
 

@@ -84,6 +84,12 @@ class ApiClient:
         response.raise_for_status()
         return response.json()
 
+    def get_raw(self, path: str, params: dict = None):
+        url = self._build_url(path)
+        response = requests.get(url, headers=self._headers(), params=params)
+        response.raise_for_status()
+        return response.content
+
     # ===============================
     # POST
     # ===============================

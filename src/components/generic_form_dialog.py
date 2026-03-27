@@ -20,7 +20,7 @@ from src.services.catalogo_service import CatalogoService
 from src.workers.combo_loader import ComboLoaderRunnable
 from src.workers.api_worker import ApiWorker
 from src.services.logger_service import LoggerService
-from src.components.custom_inputs import CheckableComboBox
+from src.components.custom_inputs import CheckableComboBox, RadioComboBox
 
 EIPD_AMBITOS = [
     "Lícitud y Lealtad",
@@ -930,10 +930,13 @@ class GenericFormDialog(QDialog):
                 for opt in field["options"]:
                     inp.addItem(opt["nombre"], opt["id"])
                     
-                if not self.is_edit and not is_multiple:
+                if not is_multiple:
                      inp.setCurrentIndex(-1)
 
             return inp
+
+        elif ftype == "radio_combo":
+            return RadioComboBox()
             
         elif ftype == "file":
              return FilePickerWidget()
@@ -1099,8 +1102,9 @@ class GenericFormDialog(QDialog):
         if not widget: return False
         
         try:
-            # Robust check for CheckableComboBox
+            # Robust check for CheckableComboBox and RadioComboBox
             is_checkable = isinstance(widget, CheckableComboBox) or widget.__class__.__name__ == "CheckableComboBox"
+            is_radio = isinstance(widget, RadioComboBox) or widget.__class__.__name__ == "RadioComboBox"
             
             if isinstance(widget, QLineEdit):
                 return bool(widget.text().strip())
@@ -1108,7 +1112,7 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, (QTextEdit, QPlainTextEdit)):
                 return bool(widget.toPlainText().strip())
                  
-            elif is_checkable:
+            elif is_radio or is_checkable:
                 # Check text presence as visual confirmation of selection
                 return bool(widget.lineEdit().text().strip())
                 
@@ -1141,6 +1145,10 @@ class GenericFormDialog(QDialog):
         # EIPD Flattening Logic
         if self.config.get("endpoint") == "/eipd":
             data = self._flatten_eipd_data(data)
+
+        # Activos Mapping: rat_id -> procesos_vinculados
+        if self.config.get("endpoint") == "/activos" and "rat_id" in data:
+            data["procesos_vinculados"] = data["rat_id"]
 
         self.asset_data = data
         self._try_set_values()
@@ -1258,27 +1266,27 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, EditableTableWidget):
                 widget.set_data(value)
             elif isinstance(widget, CheckableComboBox):
-                # value puede venir como JSON string o list
-                if isinstance(value, str):
-                    try:
-                        value = json.loads(value)
-                    except Exception:
+                # RadioComboBox inherit from CheckableComboBox, so we handle it here
+                # value puede venir como JSON string o list (Checkable) o single ID (Radio)
+                
+                is_radio = isinstance(widget, RadioComboBox) or widget.__class__.__name__ == "RadioComboBox"
+                
+                if is_radio:
+                    # Radio stores a single ID but setCurrentData expects a list
+                    if not isinstance(value, list):
+                        value = [value]
+                else:
+                    # Standard Checkable (Multi)
+                    if isinstance(value, str):
+                        try:
+                            value = json.loads(value)
+                        except Exception:
+                            value = []
+
+                    if not isinstance(value, list):
                         value = []
 
-                if not isinstance(value, list):
-                    value = []
-
-                # Marcar checks según itemData
-                for i in range(widget.count()):
-                    item_data = widget.itemData(i)
-                    item = widget.model().item(i, 0)
-
-                    if item_data in value:
-                        item.setCheckState(Qt.Checked)
-                    else:
-                        item.setCheckState(Qt.Unchecked)
-
-                widget.updateText()
+                widget.setCurrentData(value)
 
             elif isinstance(widget, RiskMatrixWidget):
                 widget.set_data(value)
@@ -1337,7 +1345,7 @@ class GenericFormDialog(QDialog):
                         endpoint = field["source"]
                         cache_key = field.get("cache_key", f"cache_{key}")
                         combos_to_load.append((ct_widget.combo, endpoint, cache_key))
-                elif ftype == "combo" and field.get("source") and not field.get("depends_on"):
+                elif ftype in ["combo", "radio_combo"] and field.get("source") and not field.get("depends_on"):
                     key = field["key"]
                     widget = self.inputs.get(key)
                     endpoint = field["source"]
@@ -1386,18 +1394,37 @@ class GenericFormDialog(QDialog):
     def _on_combo_data(self, combo, data):
         combo.clear()
         if data:
+            is_radio = isinstance(combo, RadioComboBox)
             for item in data:
-                combo.addItem(item["nombre"], item["id"])
-                
-        # Logic for selection state
-        if isinstance(combo, CheckableComboBox):
-             combo.updateText() # Clear
-        else:
-             # Standard ComboBox
-             # If "New" mode, ensure no selection by default
-             if not self.is_edit:
-                 combo.setCurrentIndex(-1)
+                if is_radio:
+                    full_desc = item.get("descripcion", "")
+                    if "." in full_desc:
+                        # Split by first period as requested
+                        primary_text, tooltip_text = full_desc.split(".", 1)
+                        primary_text = primary_text.strip()
+                        tooltip_text = tooltip_text.strip()
+                    else:
+                        primary_text = full_desc
+                        tooltip_text = ""
+                    
+                    # Optionally include the code (User example showed codigo_proceso: 10)
+                    code = item.get("codigo_proceso")
+                    label = f"{code}. {primary_text}" if code else primary_text
+                    
+                    combo.addItem(label, item["id"], tooltip=tooltip_text)
+                else:
+                    label = item.get("nombre") or item.get("descripcion") or str(item.get("id"))
+                    combo.addItem(label, item["id"])
                  
+        # Ensure no default selection (shows placeholder) until a value is applied
+        combo.setCurrentIndex(-1)
+        # For checkable types (Radio/Multi), ensure lineEdit is cleared to show placeholder
+        if hasattr(combo, 'lineEdit') and combo.lineEdit():
+            combo.lineEdit().clear()
+        
+        if hasattr(combo, 'updateText'):
+            combo.updateText()
+
         if self.asset_data and self._allow_asset_reapply:
             # Re-try setting value if data is already here (Edit mode)
             self._try_set_values()
@@ -1550,13 +1577,17 @@ class GenericFormDialog(QDialog):
         layout.addWidget(scroll, 1) 
         
         # Footer
-        footer = QHBoxLayout()
-        self.footer_layouts[index] = footer
+        footer_container = QWidget()
+        footer_container.setObjectName(f"footerContainer_{index}")
+        footer_layout = QHBoxLayout(footer_container)
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.footer_layouts[index] = footer_layout
         
         # Build initial footer
         self._rebuild_footer(index, index == total - 1)
             
-        layout.addLayout(footer)
+        layout.addWidget(footer_container)
         return container
 
     # ===============================
@@ -1735,7 +1766,7 @@ class GenericFormDialog(QDialog):
                 ftype = field.get("type", "text")
                 default_value = None
 
-                if ftype in ["combo", "combo_static"]:
+                if ftype in ["combo", "combo_static", "radio_combo"]:
                     default_value = self._first_combo_id(key)
                     if default_value is None and field.get("source"):
                         default_value = self._first_id_from_endpoint(field["source"])
@@ -1778,9 +1809,18 @@ class GenericFormDialog(QDialog):
             elif isinstance(widget, ComboTextWidget):
                 val = widget.get_data()
             elif isinstance(widget, QComboBox):
-                val = widget.currentData()
+                if isinstance(widget, RadioComboBox) or widget.__class__.__name__ == "RadioComboBox":
+                    # RadioComboBox returns a list from currentData but we want a single ID
+                    data_list = widget.currentData()
+                    val = data_list[0] if data_list else None
+                else:
+                    val = widget.currentData()
             
             payload[key] = val
+            
+        # Activos Mapping: procesos_vinculados -> rat_id
+        if self.config.get("endpoint") == "/activos" and payload.get("procesos_vinculados"):
+            payload["rat_id"] = payload["procesos_vinculados"]
             
         # Common fields
         payload["creado_por_usuario_id"] = "e13f156d-4bde-41fe-9dfa-9b5a5478d257"
@@ -1943,3 +1983,44 @@ class GenericFormDialog(QDialog):
         if hasattr(self, 'loading_overlay'):
             self.loading_overlay.resize(event.size())
         super().resizeEvent(event)
+
+    # ======================================================
+    # Close Prevention
+    # ======================================================
+
+    def reject(self):
+        """Override Esc key and reject() behavior to ask for confirmation."""
+        self._confirm_close_dialog()
+
+    def closeEvent(self, event):
+        """Override window X button to ask for confirmation."""
+        # result = self._confirm_close_dialog()
+        # if result:
+        #     event.accept()
+        # else:
+        #     event.ignore()
+        # Wait, since reject() is called by QDialog when closing via X in some cases, 
+        # but better handle closeEvent explicitly.
+        
+        # We need to block close if the user cancels the confirmation
+        if self._confirm_close_dialog_bool():
+            event.accept()
+        else:
+            event.ignore()
+
+    def _confirm_close_dialog_bool(self) -> bool:
+        """Shows the confirmation dialog and returns True if user wants to close."""
+        dialog = AlertDialog(
+            title="Confirmar Cierre",
+            message="¿Está seguro que desea cerrar la ventana? Se perderán los cambios no guardados.",
+            icon_path="src/resources/icons/alert_warning.svg",
+            confirm_text="Cerrar ventana",
+            cancel_text="Cancelar",
+            parent=self
+        )
+        return bool(dialog.exec())
+
+    def _confirm_close_dialog(self):
+        """Shows the confirmation dialog and rejects if user confirms."""
+        if self._confirm_close_dialog_bool():
+            super().reject()

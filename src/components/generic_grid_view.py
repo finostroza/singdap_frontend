@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QTextDocument, QActionGroup
 from PySide6.QtPrintSupport import QPrinter
 import csv
+import base64
 from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool, QPoint
 
 from src.core.api_client import ApiClient
@@ -725,7 +726,20 @@ class GenericGridView(QWidget):
                 btn.setGraphicsEffect(None)
             
             # Connect action
-            btn.clicked.connect(partial(self._execute_action, action, record_id))
+            if action.get("tipo") == "export_row":
+                menu = QMenu(btn)
+                csv_act = menu.addAction("Exportar a CSV")
+                pdf_act = menu.addAction("Exportar a PDF")
+                
+                csv_act.triggered.connect(partial(self._export_single_row, record_id))
+                pdf_act.triggered.connect(partial(self._export_single_row_pdf, record_id))
+                
+                btn.setMenu(menu)
+                # Opcional: Hacer que el botón abra el menú al hacer clic normal (no solo en la flecha si la hubiera)
+                # En muchos temas de Qt, setMenu ya lo hace así.
+            else:
+                btn.clicked.connect(partial(self._execute_action, action, record_id))
+                
             l.addWidget(btn)
             
         self.table.setCellWidget(row, col_idx, w)
@@ -807,6 +821,38 @@ class GenericGridView(QWidget):
 
         elif action_type == "export_row":
             self._export_single_row(record_id)
+
+    def _export_single_row_pdf(self, record_id):
+        endpoint_template = self.config.get("endpoints", {}).get("exportar_detalle_pdf")
+        if not endpoint_template:
+            self._show_export_error("No se ha configurado endpoint de exportación PDF unitaria.")
+            return
+
+        url = endpoint_template.replace("{id}", str(record_id))
+        
+        file_path, _ = QFileDialog.getSaveFileName(self, f"Exportar PDF Registro {record_id}", f"registro_{record_id}.pdf", "PDF (*.pdf)")
+        if not file_path:
+            return
+            
+        if not file_path.endswith('.pdf'):
+            file_path += '.pdf'
+
+        self.loading_overlay.show_loading()
+        
+        def fetch_pdf():
+            return self.api.get_raw(url)
+
+        def on_finished(content):
+            self.loading_overlay.hide_loading()
+            self._handle_pdf_export_result(content, file_path)
+
+        worker = ApiWorker(fetch_pdf, parent=self)
+        worker.finished.connect(on_finished)
+        worker.error.connect(lambda e: (
+            self.loading_overlay.hide_loading(),
+            self._show_export_error(f"Error en la descarga del PDF: {e}")
+        ))
+        worker.start()
 
     def _export_single_row(self, record_id):
         endpoint_template = self.config.get("endpoints", {}).get("detalle")
@@ -1021,6 +1067,77 @@ class GenericGridView(QWidget):
             parent=self
         ).exec()
 
+    def _show_export_success(self, message="El archivo ha sido guardado correctamente."):
+        AlertDialog(
+            title="Éxito",
+            message=message,
+            icon_path="src/resources/icons/alert_success.svg",
+            confirm_text="Cerrar",
+            parent=self
+        ).exec()
+
+    def _convert_html_to_pdf(self, html, file_path):
+        try:
+            doc = QTextDocument()
+            doc.setHtml(html)
+            
+            printer = QPrinter(QPrinter.HighResolution)
+            printer.setOutputFormat(QPrinter.PdfFormat)
+            printer.setOutputFileName(file_path)
+            
+            doc.print_(printer)
+            self._show_export_success()
+        except Exception as e:
+            self._show_export_error(f"Error al convertir HTML a PDF: {str(e)}")
+
+    def _handle_pdf_export_result(self, content, file_path):
+        if not content:
+            self._show_export_error("El servidor no devolvió contenido.")
+            return
+        
+        # Intentar identificar el formato
+        is_pdf = content.startswith(b'%PDF')
+        
+        # Si no es PDF directo, podría ser HTML o Base64
+        if not is_pdf:
+            try:
+                text_content = content.decode('utf-8', errors='ignore').strip()
+                
+                # Caso 1: JSON con error o data
+                if text_content.startswith('{'):
+                    data = json.loads(text_content)
+                    # Si tiene una clave 'data' que es base64
+                    if 'data' in data and isinstance(data['data'], str):
+                        try:
+                            import base64
+                            decoded = base64.b64decode(data['data'])
+                            if decoded.startswith(b'%PDF'):
+                                content = decoded
+                                is_pdf = True
+                        except:
+                            pass
+                    else:
+                        self._show_export_error(f"Error del servidor: {data.get('message', 'Error desconocido')}")
+                        return
+                
+                # Caso 2: HTML puro que hay que convertir
+                elif text_content.lower().startswith('<html') or text_content.lower().startswith('<!doctype html'):
+                    self._convert_html_to_pdf(text_content, file_path)
+                    return
+                    
+            except Exception as e:
+                print(f"Error identificando formato: {e}")
+
+        if is_pdf:
+            try:
+                with open(file_path, 'wb') as f:
+                    f.write(content)
+                self._show_export_success()
+            except Exception as e:
+                self._show_export_error(f"Error al guardar el archivo: {str(e)}")
+        else:
+            self._show_export_error("El formato recibido no es un PDF válido ni HTML convertible.")
+
     def _export_csv(self):
         if self.table.rowCount() == 0:
             self._show_export_error()
@@ -1072,72 +1189,89 @@ class GenericGridView(QWidget):
             self._show_export_error()
             return
             
-        file_path, _ = QFileDialog.getSaveFileName(self, "Exportar PDF", "", "PDF (*.pdf)")
-        if not file_path:
-            return
-            
-        if not file_path.endswith('.pdf'):
-            file_path += '.pdf'
-            
-        try:
-            doc = QTextDocument()
-            
-            # Estilo HTML simple
-            html = """
-            <html>
-            <head>
-            <style>
-                body { font-family: sans-serif; }
-                h1 { color: #333; }
-                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-                th { background-color: #f2f2f2; font-weight: bold; padding: 8px; border: 1px solid #ccc; text-align: center; font-size: 10pt; }
-                td { padding: 8px; border: 1px solid #ccc; font-size: 10pt; }
-            </style>
-            </head>
-            <body>
-            """
-            
-            html += f"<h1>{self.config.get('titulo', 'Reporte')}</h1>"
-            html += f"<p>Generado el: {QDateTime.currentDateTime().toString('dd/MM/yyyy HH:mm')}</p>"
-            html += "<table><thead><tr>"
-            
-            # Encabezados y Columnas
-            visible_cols = []
-            for col in range(self.table.columnCount()):
-                if self.table.isColumnHidden(col):
-                    continue
-                header_item = self.table.horizontalHeaderItem(col)
-                label = header_item.text() if header_item else ""
-                if label == "Acciones":
-                    continue
+        endpoint = self.config.get("endpoints", {}).get("exportar_pdf")
+        
+        if endpoint:
+            # Consumir API del Backend
+            file_path, _ = QFileDialog.getSaveFileName(self, "Exportar PDF", "", "PDF (*.pdf)")
+            if not file_path:
+                return
                 
-                html += f"<th>{label}</th>"
-                visible_cols.append(col)
+            if not file_path.endswith('.pdf'):
+                file_path += '.pdf'
+
+            self.loading_overlay.show_loading()
+            
+            def fetch_pdf():
+                # Obtenemos los filtros actuales para que el PDF coincida con lo que ve el usuario (opcional pero recomendado)
+                params = {}
+                search_param = self.config.get("buscador", {}).get("param_api")
+                if search_param and self.search_input.text():
+                    params[search_param] = self.search_input.text()
                 
-            html += "</tr></thead><tbody>"
-            
-            # Filas
-            for row in range(self.table.rowCount()):
-                html += "<tr>"
-                for col in visible_cols:
-                    item = self.table.item(row, col)
-                    text = item.text() if item else ""
-                    html += f"<td>{text}</td>"
-                html += "</tr>"
+                # Agregamos filtros de columnas si es necesario
+                # Por ahora, si el backend lo soporta, enviamos los mismos params que el listado
                 
-            html += "</tbody></table></body></html>"
+                return self.api.get_raw(endpoint, params=params)
+
+            def on_finished(content):
+                self.loading_overlay.hide_loading()
+                self._handle_pdf_export_result(content, file_path)
+
+            worker = ApiWorker(fetch_pdf, parent=self)
+            worker.finished.connect(on_finished)
+            worker.error.connect(lambda e: (
+                self.loading_overlay.hide_loading(),
+                self._show_export_error(f"Error en la descarga del PDF: {e}")
+            ))
+            worker.start()
             
-            doc.setHtml(html)
-            
-            printer = QPrinter(QPrinter.HighResolution)
-            printer.setOutputFormat(QPrinter.PdfFormat)
-            printer.setOutputFileName(file_path)
-            
-            doc.print_(printer)
-            
-        except Exception as e:
-            LoggerService().log_error("Error exportando a PDF", e)
-            self._show_export_error(f"Error al exportar: {str(e)}")
+        else:
+            # Lógica Legada: Generación Local vía HTML
+            file_path, _ = QFileDialog.getSaveFileName(self, "Exportar PDF", "", "PDF (*.pdf)")
+            if not file_path:
+                return
+                
+            if not file_path.endswith('.pdf'):
+                file_path += '.pdf'
+                
+            try:
+                doc_html = f"<h1>{self.config.get('titulo', 'Reporte')}</h1>"
+                doc_html += f"<p>Generado el: {QDateTime.currentDateTime().toString('dd/MM/yyyy HH:mm')}</p>"
+                doc_html += "<table><thead><tr>"
+                
+                # Encabezados y Columnas
+                visible_cols = []
+                for col in range(self.table.columnCount()):
+                    if self.table.isColumnHidden(col):
+                        continue
+                    header_item = self.table.horizontalHeaderItem(col)
+                    label = header_item.text() if header_item else ""
+                    if label == "Acciones":
+                        continue
+                    
+                    doc_html += f"<th>{label}</th>"
+                    visible_cols.append(col)
+                    
+                doc_html += "</tr></thead><tbody>"
+                
+                # Filas
+                for row in range(self.table.rowCount()):
+                    doc_html += "<tr>"
+                    for col in visible_cols:
+                        item = self.table.item(row, col)
+                        text = item.text() if item else ""
+                        doc_html += f"<td>{text}</td>"
+                    doc_html += "</tr>"
+                    
+                doc_html += "</tbody></table></body></html>"
+                
+                # Usar el convertidor común
+                self._convert_html_to_pdf(doc_html, file_path)
+                
+            except Exception as e:
+                LoggerService().log_error("Error exportando a PDF local", e)
+                self._show_export_error(f"Error al generar PDF local: {str(e)}")
 
     def _execute_delete(self, action_config, record_id):
         confirm_config = action_config.get("confirmacion", {})

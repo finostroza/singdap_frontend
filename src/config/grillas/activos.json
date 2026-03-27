@@ -9,7 +9,9 @@
         "detalle": "/activos/{id}",
         "crear": "/activos",
         "editar": "/activos/{id}",
-        "eliminar": "/activos/{id}"
+        "eliminar": "/activos/{id}",
+        "exportar_pdf": "/activos/exportar-pdf-grilla",
+        "exportar_detalle_pdf": "/activos/{id}/exportar-pdf"
     },
     "campo_id": "activo_id",
     "columnas": [

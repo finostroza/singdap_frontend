@@ -93,3 +93,42 @@ class CheckableComboBox(QComboBox):
     def hidePopup(self):
         super().hidePopup()
         self.updateText()
+
+class RadioComboBox(CheckableComboBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._placeholder_text = "Seleccione..."
+
+    def addItem(self, text, userData=None, tooltip=None):
+        item = QStandardItem(text)
+        item.setData(userData, Qt.UserRole)
+        # Enable it but ensure it's not multi-checkable by default logic? 
+        # CheckableComboBox sets flags in addItem too.
+        item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
+        item.setData(Qt.Unchecked, Qt.CheckStateRole)
+        if tooltip:
+            item.setToolTip(tooltip)
+        self.model().appendRow(item)
+
+    def eventFilter(self, widget, event):
+        if widget == self.view().viewport():
+            if event.type() == QEvent.MouseButtonRelease:
+                index = self.view().indexAt(event.pos())
+                item = self.model().itemFromIndex(index)
+                if item and item.flags() & Qt.ItemIsUserCheckable:
+                    # Single selection: uncheck all others
+                    for row in range(self.model().rowCount()):
+                        other = self.model().item(row)
+                        if other != item:
+                            other.setCheckState(Qt.Unchecked)
+                    # Toggle or force check? User said "checkbox de selección única", 
+                    # usually means if you click it it stays checked or toggles.
+                    # Radio buttons stay checked.
+                    item.setCheckState(Qt.Checked)
+                self.updateText()
+                # Instead of return True, let's see if we should let it close the popup
+                # CheckableComboBox returns True to keep it open. 
+                # For Radio, maybe it SHOULD close? Usually dropdowns close.
+                self.hidePopup()
+                return True
+        return super(CheckableComboBox, self).eventFilter(widget, event)

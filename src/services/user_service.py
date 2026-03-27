@@ -37,3 +37,6 @@ class UserService:
     def list_modulos_con_acciones(self) -> list[dict]:
         """Obtiene la matriz maestra de módulos con sus respectivos IDs de acción (permisos)."""
         return self.api.get("/admin/modulos/con-acciones")
+    def delete_user(self, user_id: str) -> dict:
+        """Elimina un usuario de la base de datos."""
+        return self.api.delete(f"/users/{user_id}")

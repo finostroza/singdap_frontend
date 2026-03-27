@@ -78,3 +78,12 @@ Desktop.ini
 # Resources (optional, if generated)
 # frontend/src/resources/icons/
 # frontend/src/resources/images/
+
+# Archivos de contexto del proyecto (solo uso local, no subir al repo)
+../PROJECT_CONTEXT.md
+../CLAUDE.md
+../GUI_GUIDELINES.md
+
+# Respaldos locales
+../*.zip
+../*.rar

@@ -176,12 +176,15 @@ class TreeMapWidget(QWidget):
                 
                 painter.drawText(rect.adjusted(7, 7, -5, -5), Qt.AlignLeft | Qt.AlignTop, name_trimmed)
                 
-                # Cantidad (Abajo Izquierda - ejemplo "mill.")
+                # Cantidad (Abajo Izquierda)
                 painter.setFont(font_val)
-                # Formatear número para que no muestre .0 si es entero
-                f_val = f"{int(val)}" if val == int(val) else f"{val:.1f}"
-                val_text = f"{f_val} mill." if val >= 1 else f"{val} unid."
-                painter.drawText(rect.adjusted(7, 5, -7, -7), Qt.AlignLeft | Qt.AlignBottom, val_text)
+                # Formatear número con separadores de miles (puntos)
+                if val == int(val):
+                    f_val = f"{int(val):,}".replace(",", ".")
+                else:
+                    f_val = f"{val:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                
+                painter.drawText(rect.adjusted(7, 5, -7, -7), Qt.AlignLeft | Qt.AlignBottom, f_val)
 
     def mouseMoveEvent(self, event):
         """Detecta sobre qué rectángulo está el mouse y muestra tooltip personalizado."""
@@ -421,10 +424,10 @@ class DashboardView(QWidget):
         self.grid.setContentsMargins(0, 5, 0, 5)
 
         # Inicializar Tarjetas
-        self.card_activos = DashboardCard("Resumen Activos", "0", "#2563eb", has_chart=False)
-        self.card_rat = DashboardCard("Resumen RAT", "0", "#10b981", has_chart=False)
-        self.card_eipd = DashboardCard("Resumen EIPD", "0", "#f59e0b", has_chart=False)
-        self.card_riesgos = DashboardCard("Alertas de Riesgo", "0", "#ef4444", has_chart=True)
+        self.card_activos = DashboardCard("Cantidad de Activos registrados", "0", "#2563eb", has_chart=False)
+        self.card_rat = DashboardCard("Cantidad de RAT generados", "0", "#10b981", has_chart=False)
+        self.card_eipd = DashboardCard("Cantidad de EIPD Generados", "0", "#f59e0b", has_chart=False)
+        self.card_riesgos = DashboardCard("Número de Riesgos Identificados", "0", "#ef4444", has_chart=True)
 
         # Layout mejorado:
         # Columna de la izquierda para las 3 tarjetas simples apiladas
@@ -450,7 +453,7 @@ class DashboardView(QWidget):
         
         self.splitter.addWidget(container1)
 
-        # --- SECCIÓN 2: Estadísticas por Usuario (TREEMAP) ---
+        # --- SECCIÓN 2: Estadísticas por Ciudadana/o (TREEMAP) ---
         container2 = QWidget()
         container2.setMinimumHeight(250)
         layout2 = QVBoxLayout(container2)
@@ -458,19 +461,10 @@ class DashboardView(QWidget):
         layout2.setSpacing(10)
 
         header2 = QHBoxLayout()
-        header2.addWidget(_make_section_title("Estadísticas por Usuario"))
+        header2.addWidget(_make_section_title("Estadísticas por Ciudadana/o"))
         header2.addStretch()
 
-        self.inst_status = QLabel("")
-        self.inst_status.setStyleSheet("font-size: 11px; color: #64748b; font-style: italic;")
-        header2.addWidget(self.inst_status)
 
-        self.refresh_inst = QPushButton("Recargar")
-        self.refresh_inst.setObjectName("secondaryButton")
-        self.refresh_inst.setFixedSize(90, 32)
-        self.refresh_inst.setCursor(Qt.PointingHandCursor)
-        self.refresh_inst.clicked.connect(lambda: self.viewmodel.cargar_instituciones(force_api=True))
-        header2.addWidget(self.refresh_inst)
         
         layout2.addLayout(header2)
 
@@ -502,7 +496,7 @@ class DashboardView(QWidget):
         self.viewmodel.on_stats_ready.connect(self._on_stats_received)
         self.viewmodel.on_error.connect(lambda e: self.updated_lbl.setText(f"Error: {e}"))
         self.viewmodel.on_instituciones_ready.connect(self._on_inst_received)
-        self.viewmodel.on_instituciones_error.connect(lambda e: self.inst_status.setText(f"Error: {e}"))
+        # self.viewmodel.on_instituciones_error.connect(...) # Removido por usuario
 
         # Cargas iniciales
         QTimer.singleShot(300, self.viewmodel.cargar_estadisticas)
@@ -535,7 +529,6 @@ class DashboardView(QWidget):
     def _on_inst_received(self, data):
         from datetime import datetime
         print(f"DEBUG DASHBOARD: Datos recibidos para instituciones (tipo: {type(data)}): {data}")
-        self.inst_status.setText(f"Act: {datetime.now().strftime('%H:%M:%S')}")
 
         list_data = []
         if isinstance(data, dict):

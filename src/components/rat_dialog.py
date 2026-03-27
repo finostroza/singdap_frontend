@@ -123,8 +123,8 @@ class RatDialog(GenericFormDialog):
         if not sections:
             return
 
-        # 🚨 SIEMPRE saltar las 2 primeras
-        new_sections = sections[2:]
+        # 🚨 SIEMPRE saltar la primera (Identificación)
+        new_sections = sections[1:]
 
         if not new_sections:
             return
@@ -138,12 +138,18 @@ class RatDialog(GenericFormDialog):
 
         for i, section in enumerate(new_sections):
             abs_index = start_index + i
+            
+            # Dinamizar número de Gobierno de Datos si aparece
+            section_title = section["title"]
+            if "Gobierno de Datos" in section_title:
+                section_title = f"{abs_index + 1}. Gobierno de Datos"
+
             content_widget = self._build_section_form(section)
-            self.sidebar.add_step(section["title"])
+            self.sidebar.add_step(section_title)
 
             page = self._wrap_step_content(
                 content_widget,
-                section["title"],
+                section_title,
                 section.get("description", ""),
                 abs_index,
                 len(self.config["sections"]),
@@ -155,13 +161,14 @@ class RatDialog(GenericFormDialog):
             self._update_footer_to_next(start_index - 1)
         
         last_index = self.stack.count() - 1
-        self._update_footer_to_save(last_index)
+        if last_index >= 0:
+            self._update_footer_to_save(last_index)
 
         self._validate_steps_progress()
 
     def _shrink_form(self):
-        if len(self.config["sections"]) <= 2: return
-        while len(self.config["sections"]) > 2:
+        if len(self.config["sections"]) <= 1: return
+        while len(self.config["sections"]) > 1:
             section = self.config["sections"].pop()
             for field in section.get("fields", []):
                 key = field["key"]
@@ -171,9 +178,11 @@ class RatDialog(GenericFormDialog):
             
             self.sidebar.remove_last_step()
             w = self.stack.widget(self.stack.count()-1)
-            self.stack.removeWidget(w); w.deleteLater()
+            if w:
+                self.stack.removeWidget(w)
+                w.deleteLater()
             
-        self._update_footer_to_save(1)
+        # No actualizar footer aquí, se hará en el siguiente _expand si corresponde
         self._validate_steps_progress()
 
     def _iter_section_fields(self, fields):
@@ -201,30 +210,34 @@ class RatDialog(GenericFormDialog):
     def _update_footer_to_save(self, idx): self._rebuild_footer(idx, True)
     
     def _rebuild_footer(self, index, is_last):
-        page = self.stack.widget(index)
-        if not page:
-            return
-
-        layout = page.layout()
-        if not layout:
-            return
-
-        item = layout.itemAt(layout.count() - 1)
-        if not item:
-            return
-
-        footer_layout = item.layout()
+        # 1. Recuperar el layout del registro central (ahora blindado por footer_container en el padre)
+        footer_layout = self.footer_layouts.get(index)
         if not footer_layout:
             return
 
-        self._clear_layout(footer_layout)
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton
+        if not isinstance(footer_layout, QHBoxLayout):
+            return
 
-        from PySide6.QtWidgets import QPushButton
+        # 2. Limpieza segura y efectiva
+        while footer_layout.count():
+            item = footer_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                def clear_sub(l):
+                    while l.count():
+                        i = l.takeAt(0)
+                        if i.widget(): i.widget().deleteLater()
+                        elif i.layout(): clear_sub(i.layout())
+                clear_sub(item.layout())
 
+        # 3. Reconstrucción
         # Botón Anterior
         if index > 0:
             btn_prev = QPushButton("Anterior")
             btn_prev.setObjectName("secondaryButton")
+            btn_prev.setMaximumHeight(35)
             btn_prev.clicked.connect(self.sidebar.prev_step)
             footer_layout.addWidget(btn_prev)
 
@@ -233,24 +246,24 @@ class RatDialog(GenericFormDialog):
         if not is_last:
             btn_next = QPushButton("Siguiente")
             btn_next.setObjectName("primaryButton")
+            btn_next.setMaximumHeight(35)
             btn_next.clicked.connect(self.sidebar.next_step)
             footer_layout.addWidget(btn_next)
             return
 
-        # ===============================
-        # DECISIÓN DE BOTONES (AQUÍ ESTÁ TODO)
-        # ===============================
-
+        # --- BOTONES FINALES ---
         estado = self.rat_estado
         is_admin = self._is_admin_user
 
         if estado == "EN_EDICION":
             btn_guardar = QPushButton("Guardar")
             btn_guardar.setObjectName("primaryButton")
+            btn_guardar.setMaximumHeight(35)
             btn_guardar.clicked.connect(self._submit)
 
             btn_enviar = QPushButton("Enviar")
             btn_enviar.setObjectName("dangerButton")
+            btn_enviar.setMaximumHeight(35)
             btn_enviar.clicked.connect(self._submit_enviar)
 
             footer_layout.addWidget(btn_guardar)
@@ -259,10 +272,12 @@ class RatDialog(GenericFormDialog):
         elif estado == "ENVIADO" and is_admin:
             btn_aprobar = QPushButton("Aprobar")
             btn_aprobar.setObjectName("successButton")
+            btn_aprobar.setMaximumHeight(35)
             btn_aprobar.clicked.connect(self._aprobar_rat)
 
             btn_rechazar = QPushButton("Rechazar")
             btn_rechazar.setObjectName("dangerButton")
+            btn_rechazar.setMaximumHeight(35)
             btn_rechazar.clicked.connect(self._mostrar_rechazo)
 
             footer_layout.addWidget(btn_aprobar)
@@ -297,9 +312,10 @@ class RatDialog(GenericFormDialog):
 
             # 🔒 SOLO cambiar estado
             self.client.put(
-            f"/rat/{self.record_id}/estado",
-            {"estado": "ENVIADO"}
-)
+                f"/rat/{self.record_id}/estado",
+                {"estado": "ENVIADO"}
+            )
+
 
             self._invalidate_rat_catalog_cache()
 
@@ -348,17 +364,8 @@ class RatDialog(GenericFormDialog):
             self.accept()
 
 
-    def _clear_layout(self, layout):
-        if not layout:
-            return
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-            elif child.layout():
-                self._clear_layout(child.layout())
-
-   # =========================================================================
+    
+    # =========================================================================
     #  CARGA DE DATOS (EDITAR) - SOLUCIÓN ROBUSTA SIN TRADUCCIONES
     # =========================================================================
     def _lock_form(self):

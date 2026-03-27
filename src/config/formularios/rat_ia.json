@@ -7,43 +7,6 @@
     "height": 800,
     "sections": [
         {
-            "title": "0. Gobierno de Datos",
-            "description": "Metadatos del documento RAT.",
-            "fields": [
-                {
-                    "key": "fecha_elaboracion",
-                    "label": "Fecha de elaboración",
-                    "type": "text",
-                    "control": "calendar",
-                    "required": true
-                },
-                {
-                    "key": "responsable_informe",
-                    "label": "Responsable del Informe",
-                    "type": "text",
-                    "required": true
-                },
-                {
-                    "key": "equipo_entrevistados",
-                    "label": "Equipo de entrevistados",
-                    "type": "text",
-                    "required": true
-                },
-                {
-                    "key": "equipo_validacion",
-                    "label": "Equipo de validación de contenidos",
-                    "type": "text",
-                    "required": true
-                },
-                {
-                    "key": "revision_aprobacion",
-                    "label": "Revisión y aprobación final",
-                    "type": "text",
-                    "required": true
-                }
-            ]
-        },
-        {
             "title": "1. Identificación general del tratamiento",
             "description": "Antecedentes principales para individualizar el tratamiento y sus responsables.",
             "fields": [
@@ -151,7 +114,7 @@
         },
         {
             "title": "2. Finalidad y alcance del uso de IA",
-            "description": "Detalle de finalidad, alcance y efectos de la IA.",
+            "description": "Detalle de finalidad, alcance and efectos de la IA.",
             "fields": [
                 {
                     "key": "finalidad_principal_ia",
@@ -391,6 +354,43 @@
                     "label": "Documentación de explicabilidad",
                     "description": "Señale qué documentos o mecanismos respaldan la explicabilidad (ficha del modelo, reportes, ejemplos).",
                     "type": "file",
+                    "required": true
+                }
+            ]
+        },
+        {
+            "title": "11. Gobierno de Datos",
+            "description": "Metadatos del documento RAT.",
+            "fields": [
+                {
+                    "key": "fecha_elaboracion",
+                    "label": "Fecha de elaboración",
+                    "type": "text",
+                    "control": "calendar",
+                    "required": true
+                },
+                {
+                    "key": "responsable_informe",
+                    "label": "Responsable del Informe",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "equipo_entrevistados",
+                    "label": "Equipo de entrevistados",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "equipo_validacion",
+                    "label": "Equipo de validación de contenidos",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "revision_aprobacion",
+                    "label": "Revisión y aprobación final",
+                    "type": "text",
                     "required": true
                 }
             ]

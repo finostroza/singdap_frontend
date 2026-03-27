@@ -1,0 +1,23 @@
+{
+    "consultasPorPrograma": [
+        {"programa": "SENCE", "totalConsultas": 3142091},
+        {"programa": "RSHMDSapp (sistemas internos)", "totalConsultas": 1870169},
+        {"programa": "RSHMINVU", "totalConsultas": 1006544},
+        {"programa": "MDSF_RPS", "totalConsultas": 614946},
+        {"programa": "RSHDPP", "totalConsultas": 521271},
+        {"programa": "directo", "totalConsultas": 322738},
+        {"programa": "CAJMETRO", "totalConsultas": 300818},
+        {"programa": "RSHINDAP", "totalConsultas": 294950},
+        {"programa": "FONASA", "totalConsultas": 286608},
+        {"programa": "RSHJUNJI", "totalConsultas": 187853},
+        {"programa": "RSHMINJUS", "totalConsultas": 133386},
+        {"programa": "RSHIPS", "totalConsultas": 37662},
+        {"programa": "BNAC", "totalConsultas": 22199},
+        {"programa": "FOSIS REST", "totalConsultas": 19960},
+        {"programa": "CAJVAL", "totalConsultas": 19551},
+        {"programa": "SERNAMEG", "totalConsultas": 18891},
+        {"programa": "MDSF_FUD", "totalConsultas": 6670},
+        {"programa": "RSHSENADIS", "totalConsultas": 6297},
+        {"programa": "INJUV", "totalConsultas": 1114}
+    ]
+}
