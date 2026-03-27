@@ -36,7 +36,7 @@ class TrazabilidadView(QWidget):
         search_top_bar.addSpacing(56)  # Alineado con el botón "volver" del estado de resultados
 
         title_wrapper = QVBoxLayout()
-        title_0 = QLabel("TRAZABILIDAD")
+        title_0 = QLabel("TRAZABILIDAD POR CIUDADANO")
         title_0.setStyleSheet("color: #0f172a; font-size: 24px; font-weight: bold;")
         subtitle_0 = QLabel(" ")  # Espacio para igualar altura con el estado de resultados
         subtitle_0.setStyleSheet("font-size: 14px;")
@@ -131,7 +131,7 @@ class TrazabilidadView(QWidget):
         card_layout.setContentsMargins(50, 50, 50, 50)
         card_layout.setSpacing(20)
 
-        title = QLabel("Trazabilidad")
+        title = QLabel("Trazabilidad por ciudadano")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #1a2332; font-size: 26px; font-weight: bold;")
 
@@ -337,7 +337,7 @@ class TrazabilidadView(QWidget):
         """)
 
         res_title_layout = QVBoxLayout()
-        res_title = QLabel("Trazabilidad")
+        res_title = QLabel("Trazabilidad por ciudadano")
         res_title.setStyleSheet("color: #0f172a; font-size: 24px; font-weight: bold;")
         res_subtitle = QLabel("Resultados de consulta por RUN")
         res_subtitle.setStyleSheet("color: #64748b; font-size: 14px;")

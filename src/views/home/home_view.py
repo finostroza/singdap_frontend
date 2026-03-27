@@ -35,20 +35,14 @@ class HomeView(QWidget):
         card_layout.setSpacing(24)
 
         # Title
-        title_label = QLabel("Bienvenida/o al SINGDAP")
+        title_label = QLabel("Bienvenido/a al Sistema de Inventario y Gestión de Datos Personales - SINGDAP")
         title_label.setStyleSheet("""
             font-size: 28px;
             font-weight: bold;
             color: #004a99;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         """)
         card_layout.addWidget(title_label)
-
-        # Subtitle / Description
-        subtitle = "Sistema de Inventario y Gestión de Datos Personales"
-        subtitle_label = QLabel(subtitle)
-        subtitle_label.setStyleSheet("font-size: 18px; color: #555; font-weight: 500;")
-        card_layout.addWidget(subtitle_label)
 
         # Separator line
         line = QFrame()

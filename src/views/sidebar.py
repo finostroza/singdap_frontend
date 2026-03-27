@@ -90,7 +90,7 @@ class Sidebar(QWidget):
         # Navigation buttons
         # ===============================
         self.btn_home = self._nav_button(
-            "Home",
+            "Inicio",
             "src/resources/icons/home_white.svg",
             active=True,
         )
@@ -117,7 +117,7 @@ class Sidebar(QWidget):
         )
 
         self.btn_trazabilidad = self._nav_button(
-            "Trazabilidad",
+            "Trazabilidad por Ciudadano",
             "src/resources/icons/search_white.svg",
         )
 
