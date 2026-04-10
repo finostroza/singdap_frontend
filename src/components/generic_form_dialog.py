@@ -185,24 +185,44 @@ class ComboTextWidget(QWidget):
     def set_data(self, data):
         if not data:
             return
+            
+        # Parse JSON string if it looks like a dictionary or list from the API
+        if isinstance(data, str) and (data.strip().startswith("{") or data.strip().startswith("[")):
+            try:
+                import json
+                data = json.loads(data)
+            except:
+                pass
+
         if isinstance(data, dict):
             combo_val = data.get("combo")
             text_val = data.get("text", "")
         else:
-            # Legacy: plain string stored
+            # Fallback for plain strings (legacy/simple storage)
             combo_val = None
             text_val = str(data)
 
         if combo_val is not None:
             if self._is_multiple and isinstance(self.combo, CheckableComboBox):
-                self.combo.setCurrentData(combo_val if isinstance(combo_val, list) else [combo_val])
+                # CheckableComboBox expects a list of IDs/values
+                vals = combo_val if isinstance(combo_val, list) else [combo_val]
+                self.combo.setCurrentData(vals)
             elif isinstance(self.combo, QComboBox):
+                # Search for the value in itemData (ID) or itemText (Label) as fallback
+                found = False
                 for i in range(self.combo.count()):
-                    if str(self.combo.itemData(i)) == str(combo_val):
+                    val_str = str(combo_val)
+                    if str(self.combo.itemData(i)) == val_str or self.combo.itemText(i) == val_str:
                         self.combo.setCurrentIndex(i)
+                        found = True
                         break
+                if not found:
+                    self.combo.setCurrentIndex(-1)
+        
         if text_val:
-            self.text_input.setText(text_val)
+            self.text_input.setText(str(text_val))
+        else:
+            self.text_input.clear()
 
     def is_filled(self):
         """At least the combo or the text has a value."""
@@ -1146,9 +1166,13 @@ class GenericFormDialog(QDialog):
         if self.config.get("endpoint") == "/eipd":
             data = self._flatten_eipd_data(data)
 
-        # Activos Mapping: rat_id -> procesos_vinculados
-        if self.config.get("endpoint") == "/activos" and "rat_id" in data:
-            data["procesos_vinculados"] = data["rat_id"]
+        # Activos Mapping: Backend fields -> Form keys (Linked Processes)
+        if self.config.get("endpoint") == "/activos":
+            # Map linked processes (may come as rat_id or proceso_vinculado_ids)
+            # Backend documentation indicates 'proceso_vinculado_ids' as the standard
+            linked_process = data.get("proceso_vinculado_ids") or data.get("rat_id")
+            if linked_process:
+                data["procesos_vinculados"] = linked_process
 
         self.asset_data = data
         self._try_set_values()
@@ -1818,12 +1842,24 @@ class GenericFormDialog(QDialog):
             
             payload[key] = val
             
-        # Activos Mapping: procesos_vinculados -> rat_id
-        if self.config.get("endpoint") == "/activos" and payload.get("procesos_vinculados"):
-            payload["rat_id"] = payload["procesos_vinculados"]
+        # Activos Mapping: Form keys -> Backend fields (Linked Processes)
+        if self.config.get("endpoint") == "/activos":
+            # The backend expects 'proceso_vinculado_ids' as an array of UUIDs
+            if "procesos_vinculados" in payload:
+                val = payload.pop("procesos_vinculados")
+                if val:
+                    # RadioComboBox.currentData() returns a list, ensure it's correct
+                    payload["proceso_vinculado_ids"] = val if isinstance(val, list) else [val]
+                else:
+                    payload["proceso_vinculado_ids"] = []
             
-        # Common fields
-        payload["creado_por_usuario_id"] = "e13f156d-4bde-41fe-9dfa-9b5a5478d257"
+            # Remove fields not present in Swagger schema to avoid 422 (strict validation)
+            if "rat_id" in payload:
+                payload.pop("rat_id")
+            
+        # Common fields (Only for New records, Update doesn't allow changing creator)
+        if not self.is_edit:
+            payload["creado_por_usuario_id"] = "e13f156d-4bde-41fe-9dfa-9b5a5478d257"
         return payload
 
     def _build_eipd_payload(self):

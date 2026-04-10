@@ -30,7 +30,8 @@ class PermissionService:
             "TRAZABILIDAD": ["trazabilidad", "trace"],
             "MANTENEDORES": ["mantenedor", "catalogo", "catalogos"],
             "SEGUIMIENTO": ["seguimiento", "riesgos", "followup"],
-            "DASHBOARD": ["dashboard", "tablero", "indicadores", "panal"]
+            "DASHBOARD": ["dashboard", "tablero", "indicadores", "panal", "reporte", "reportes"],
+            "AUDITORIA": ["auditoria", "log", "audit", "historial"]
         }
         
         self._initialized = True
@@ -119,7 +120,7 @@ class PermissionService:
     def _resolve_module_key(self, code: str) -> str:
         if not code: return "UNKNOWN"
         code_upper = code.upper()
-        standard_keys = ["DASHBOARD", "INVENTARIO", "EIPD", "USUARIOS", "RAT", "TRAZABILIDAD", "MANTENEDORES", "SEGUIMIENTO"]
+        standard_keys = ["DASHBOARD", "REPORTES", "INVENTARIO", "EIPD", "USUARIOS", "RAT", "TRAZABILIDAD", "MANTENEDORES", "SEGUIMIENTO", "AUDITORIA"]
         
         if code_upper in standard_keys:
             return code_upper

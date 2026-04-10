@@ -155,8 +155,8 @@ class GenericGridView(QWidget):
             layout.addLayout(stats_layout)
         
         # 3. Filters & Actions Bar
-        filters_layout = QHBoxLayout()
-        filters_layout.setSpacing(10)
+        self.filters_layout = QHBoxLayout()
+        self.filters_layout.setSpacing(10)
         
         # Search (always visible as grid standard)
         search_config = self.config.get("buscador", {})
@@ -173,8 +173,7 @@ class GenericGridView(QWidget):
         )
         search_action.setToolTip("Buscar")
         search_action.triggered.connect(self._on_search)
-        
-        filters_layout.addWidget(self.search_input)
+        self.filters_layout.addWidget(self.search_input)
 
         # Column filter (standard)
         self.column_filter_combo = QComboBox()
@@ -183,27 +182,27 @@ class GenericGridView(QWidget):
         self.column_filter_combo.setMaximumWidth(180)
         self.column_filter_combo.addItem("Filtrar en: Todas las columnas", "__all__")
         for col in self.columns:
-            if col.get("visible", True):
+            if col.get("visible", True) and col.get("buscable", True):
                 self.column_filter_combo.addItem(
                     f"Filtrar en: {col['etiqueta']}",
                     col["campo_api"],
                 )
         self.column_filter_combo.currentIndexChanged.connect(self._on_search)
-        filters_layout.addWidget(self.column_filter_combo)
+        self.filters_layout.addWidget(self.column_filter_combo)
 
         # Refresh
         self.refresh_btn = QPushButton("Actualizar")
         self.refresh_btn.setObjectName("gridToolbarActionButton")
         self.refresh_btn.clicked.connect(self._reload_all)
-        filters_layout.addWidget(self.refresh_btn)
+        self.filters_layout.addWidget(self.refresh_btn)
             
         # Clear Filters Button
         self.clear_filters_btn = QPushButton("Limpiar filtros")
         self.clear_filters_btn.setObjectName("gridToolbarActionButton")
         self.clear_filters_btn.clicked.connect(self._clear_filters)
-        filters_layout.addWidget(self.clear_filters_btn)
+        self.filters_layout.addWidget(self.clear_filters_btn)
         
-        filters_layout.addStretch()
+        self.filters_layout.addStretch()
         
         # View Controls (standard)
         self.columns_btn = QPushButton("Columnas")
@@ -217,7 +216,7 @@ class GenericGridView(QWidget):
             action.toggled.connect(partial(self._toggle_column_visibility, i))
             self.column_toggle_actions[i] = action
         self.columns_btn.setMenu(self.columns_menu)
-        filters_layout.addWidget(self.columns_btn)
+        self.filters_layout.addWidget(self.columns_btn)
 
         # Export button (penultimate)
         self.export_btn = QPushButton("Exportar Grilla")
@@ -228,7 +227,12 @@ class GenericGridView(QWidget):
         csv_action.triggered.connect(self._export_csv)
         pdf_action.triggered.connect(self._export_pdf)
         self.export_btn.setMenu(export_menu)
-        filters_layout.addWidget(self.export_btn)
+        
+        # Check if export is enabled in config (default True for backward compatibility)
+        if self.config.get("exportar", {}).get("habilitado", True):
+            self.filters_layout.addWidget(self.export_btn)
+        else:
+            self.export_btn.hide()
 
         # New Button
         new_btn_config = self.config.get("boton_nuevo", {})
@@ -243,7 +247,7 @@ class GenericGridView(QWidget):
                 self.new_button.setToolTip("No tiene permisos para crear registros")
                 self.new_button.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
             
-            filters_layout.addWidget(self.new_button)
+            self.filters_layout.addWidget(self.new_button)
             
         # 🛡️ Permiso EXPORTAR (Botón General)
         if not self.permission_service.has_permission(self.perm_module, "EXPORTAR"):
@@ -251,7 +255,8 @@ class GenericGridView(QWidget):
             self.export_btn.setToolTip("No tiene permisos para exportar")
             self.export_btn.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
 
-        layout.addLayout(filters_layout)
+        layout.addLayout(self.filters_layout)
+        layout.setSpacing(5) # Reducir espacio global
         
         # 4. Table
         columns = self.columns
@@ -311,6 +316,7 @@ class GenericGridView(QWidget):
             self.next_btn.clicked.connect(self._next_page)
             
             pagination_layout = QHBoxLayout()
+            pagination_layout.setContentsMargins(0, 0, 0, 0) # Sin márgenes extra
             pagination_layout.addStretch()
             pagination_layout.addWidget(self.prev_btn)
             pagination_layout.addWidget(self.page_label)
@@ -320,6 +326,7 @@ class GenericGridView(QWidget):
             layout.addLayout(pagination_layout)
             
         layout.addStretch()
+
 
     def _create_stat_card(self, title, value):
         card = QFrame()
@@ -420,14 +427,20 @@ class GenericGridView(QWidget):
                 return {"listado": [], "indicadores": None, "blocked": True}
 
             # Build URL
-            base_url = self.config["endpoints"]["listado"]
-            url = f"{base_url}?page={page}&size={size}"
+            # Construccion robusta con params
+            params = {
+                "page": page,
+                "size": size
+            }
             
-            for param, value in filters.items():
-                if value:
-                    url += f"&{param}={value}"
+            search_param = self.config.get("buscador", {}).get("param_api")
+            if search_param:
+                search_text = self.search_input.text().strip()
+                if search_text:
+                    params[search_param] = search_text
             
-            main_data = self.api.get(url)
+            main_url = self.config["endpoints"]["listado"]
+            main_data = self.api.get(main_url, params=params)
             
             indicadores_data = None
             if self.config.get("endpoints", {}).get("indicadores"):
@@ -503,7 +516,10 @@ class GenericGridView(QWidget):
 
         if hasattr(self, "page_label"):
             self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
+        
+        self._update_table_height()
         self._refresh_header_filter_icons()
+
 
     def _apply_local_search(self, items):
         query = self.search_input.text().strip().lower()
@@ -608,10 +624,18 @@ class GenericGridView(QWidget):
         self.table.setColumnHidden(col_index, not checked)
 
     def _update_table_height(self):
-        base_height = 40
-        height = base_height + (self.page_size * self.row_height)
-        self.table.setMinimumHeight(height)
-        self.table.setMaximumHeight(height)
+        base_height = 35 # Cabecera más compacta
+        # Usamos rowCount real para que si hay menos de 10, se encoja
+        row_count = self.table.rowCount()
+        height = base_height + (row_count * self.row_height)
+        
+        # Pero no más de page_size * row_height para mantener el límite solicitado
+        max_h = base_height + (self.page_size * self.row_height)
+        final_h = min(height, max_h)
+        
+        self.table.setMinimumHeight(final_h)
+        self.table.setMaximumHeight(final_h)
+
 
     def _column_width(self, col_config):
         width = col_config.get("ancho")

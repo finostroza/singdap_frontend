@@ -1,0 +1,91 @@
+{
+    "id": "auditoria",
+    "titulo": "Auditoría y Trazabilidad de Cambios",
+    "modulo_api": "AUDITORIA",
+    "campo_id": "id",
+    "valor_nulo": "—",
+    "endpoints": {
+        "listado": "/audit-log",
+        "indicadores": null
+    },
+    "indicadores": [
+        {
+            "titulo": "Total de Actividades",
+            "campo_api": "total_actividades",
+            "prefijo": "",
+            "sufijo": ""
+        },
+        {
+            "titulo": "Días Filtrados",
+            "campo_api": "total_dias",
+            "prefijo": "",
+            "sufijo": " días"
+        }
+    ],
+
+    "buscador": {
+        "habilitado": true,
+        "placeholder": "Buscar por descripción o usuario...",
+        "param_api": "search"
+    },
+    "paginacion": {
+        "habilitado": true,
+        "tamano_pagina": 10,
+        "texto_anterior": "Anterior",
+        "texto_siguiente": "Siguiente"
+    },
+    "columnas": [
+        {
+            "etiqueta": "Fecha",
+            "campo_api": "fecha",
+            "buscable": false,
+            "ancho": 160,
+            "orden": 1,
+            "visible": true
+        },
+        {
+            "etiqueta": "Usuario",
+            "campo_api": "usuario_nombre",
+            "ancho": 180,
+            "orden": 2,
+            "visible": true
+        },
+        {
+            "etiqueta": "Email",
+            "campo_api": "usuario_email",
+            "buscable": false,
+            "ancho": 180,
+            "orden": 3,
+            "visible": true
+        },
+        {
+            "etiqueta": "Acción",
+            "campo_api": "action",
+            "ancho": 120,
+            "orden": 4,
+            "visible": true
+        },
+        {
+            "etiqueta": "Entidad",
+            "campo_api": "entity",
+            "ancho": 100,
+            "orden": 5,
+            "visible": true
+        },
+        {
+            "etiqueta": "Descripción",
+            "campo_api": "description",
+            "buscable": false,
+            "stretch": true,
+            "orden": 6,
+            "visible": true
+        }
+    ],
+    "acciones": [],
+    "boton_nuevo": {
+        "habilitado": false
+    },
+    "exportar": {
+        "habilitado": false
+    }
+}

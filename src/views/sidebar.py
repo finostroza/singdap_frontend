@@ -131,6 +131,11 @@ class Sidebar(QWidget):
             "src/resources/icons/dashboard.svg",
         )
 
+        self.btn_auditoria = self._nav_button(
+            "Auditoría",
+            "src/resources/icons/maintainers.svg",
+        )
+
         self.nav_buttons = [
             self.btn_home,
             self.btn_inventario,
@@ -140,6 +145,7 @@ class Sidebar(QWidget):
             self.btn_trazabilidad,
             self.btn_roles,
             self.btn_dashboard,
+            self.btn_auditoria,
         ]
         
         # ===============================
@@ -152,10 +158,10 @@ class Sidebar(QWidget):
         self.btn_eipd.setVisible(perm_service.has_module_access("EIPD"))
         self.btn_seguimiento.setVisible(perm_service.has_module_access("SEGUIMIENTO"))
         self.btn_trazabilidad.setVisible(perm_service.has_module_access("TRAZABILIDAD"))
+        self.btn_auditoria.setVisible(perm_service.has_module_access("AUDITORIA"))
 
-        # Solo administradores pueden ver la gestión de Usuarios / Roles
-        api = ApiClient()
-        self.btn_roles.setVisible(api.is_admin)
+        # Gestión de Usuarios / Roles basada en permisos
+        self.btn_roles.setVisible(perm_service.has_module_access("USUARIOS"))
 
         # ===============================
         # Logout

@@ -1,3 +1,4 @@
+import json
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QFrame, QTableWidgetItem, QHeaderView, QStackedWidget,
@@ -7,7 +8,8 @@ from PySide6.QtCore import Qt, QDate
 from src.viewmodels.trazabilidad_viewmodel import TrazabilidadViewModel
 from src.views.trazabilidad.api_detail_dialog import ApiDetailDialog
 from src.components.alert_dialog import AlertDialog
-from utils import icon
+from src.components.loading_overlay import LoadingOverlay
+from utils import icon, resource_path
 
 
 class TrazabilidadView(QWidget):
@@ -15,6 +17,7 @@ class TrazabilidadView(QWidget):
         super().__init__()
         self._last_run = ""
         self.viewmodel = TrazabilidadViewModel()
+        self.loading_overlay = LoadingOverlay(self)
         self.setup_ui()
         self.connect_signals()
 
@@ -22,23 +25,23 @@ class TrazabilidadView(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
-        # Stack principal: estado 0 = búsqueda, estado 1 = resultados
+        # Usamos un stack para alternar entre el buscador y los resultados
         self.stack = QStackedWidget()
 
-        # ── ESTADO 0: Vista de búsqueda ────────────────────────────────────
+        # --- VISTA DE BÚSQUEDA ---
         self.search_state = QWidget()
         search_layout = QVBoxLayout(self.search_state)
         search_layout.setContentsMargins(30, 30, 30, 30)
         search_layout.setSpacing(20)
 
-        # Título principal del módulo
+        # Cabecera con título del módulo
         search_top_bar = QHBoxLayout()
-        search_top_bar.addSpacing(56)  # Alineado con el botón "volver" del estado de resultados
+        search_top_bar.addSpacing(56)
 
         title_wrapper = QVBoxLayout()
         title_0 = QLabel("TRAZABILIDAD POR CIUDADANO")
         title_0.setStyleSheet("color: #0f172a; font-size: 24px; font-weight: bold;")
-        subtitle_0 = QLabel(" ")  # Espacio para igualar altura con el estado de resultados
+        subtitle_0 = QLabel(" ") 
         subtitle_0.setStyleSheet("font-size: 14px;")
         title_wrapper.addWidget(title_0)
         title_wrapper.addWidget(subtitle_0)
@@ -47,11 +50,11 @@ class TrazabilidadView(QWidget):
         search_top_bar.addStretch()
         search_layout.addLayout(search_top_bar)
 
-        # Tarjeta azul dinámica que muestra el nombre del tab activo
+        # Tarjetas informativas superiores que cambian según el tab
         self.dynamic_header_stack = QStackedWidget()
         self.dynamic_header_stack.setFixedHeight(72)
 
-        # Tarjeta para el tab "Consulta mediante RUN"
+        # Encabezado para Consulta RUN
         page_tab1 = QWidget()
         page1_layout = QVBoxLayout(page_tab1)
         page1_layout.setContentsMargins(0, 0, 0, 0)
@@ -65,7 +68,7 @@ class TrazabilidadView(QWidget):
         card1_layout.addStretch()
         page1_layout.addWidget(card1)
 
-        # Tarjeta para el tab "Registro de Solicitudes"
+        # Encabezado para Registro de Solicitudes
         page_tab2 = QWidget()
         page2_layout = QVBoxLayout(page_tab2)
         page2_layout.setContentsMargins(0, 0, 0, 0)
@@ -83,15 +86,11 @@ class TrazabilidadView(QWidget):
         self.dynamic_header_stack.addWidget(page_tab2)
         search_layout.addWidget(self.dynamic_header_stack)
 
-        # El header dinámico sigue al tab activo
         self.main_tabs = QTabWidget()
         self.main_tabs.currentChanged.connect(self.dynamic_header_stack.setCurrentIndex)
 
         self.main_tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background-color: transparent;
-            }
+            QTabWidget::pane { border: none; background-color: transparent; }
             QTabBar::tab {
                 background-color: #f1f5f9;
                 color: #475569;
@@ -111,7 +110,7 @@ class TrazabilidadView(QWidget):
             QTabBar::tab:hover:!selected { background-color: #e2e8f0; }
         """)
 
-        # ── Tab 1: Consulta mediante RUN ───────────────────────────────────
+        # --- TAB: CONSULTA POR RUN ---
         tab1_search = QWidget()
         tab1_search_layout = QVBoxLayout(tab1_search)
         tab1_search_layout.setAlignment(Qt.AlignCenter)
@@ -186,17 +185,16 @@ class TrazabilidadView(QWidget):
         tab1_search_layout.addWidget(self.card)
         self.main_tabs.addTab(tab1_search, "  Consulta mediante RUN  ")
 
-        # ── Tab 2: Formulario de registro de solicitudes ───────────────────
+        # --- TAB: REGISTRO DE SOLICITUDES ---
         tab2_reports = QWidget()
         tab2_reports_layout = QVBoxLayout(tab2_reports)
 
-        # El formulario va centrado horizontalmente
-        center_form_layout = QHBoxLayout()
-        center_form_layout.addStretch()
+        center_wrapper = QHBoxLayout()
+        center_wrapper.addStretch()
 
         form_card = QFrame()
         form_card.setObjectName("ReportFormCard")
-        form_card.setFixedWidth(550)
+        form_card.setFixedWidth(950)
         form_card.setStyleSheet("""
             QFrame#ReportFormCard {
                 background-color: white;
@@ -206,16 +204,14 @@ class TrazabilidadView(QWidget):
         """)
 
         form_layout = QVBoxLayout(form_card)
-        form_layout.setContentsMargins(40, 40, 40, 40)
-        form_layout.setSpacing(15)
+        form_layout.setContentsMargins(50, 40, 50, 40)
+        form_layout.setSpacing(20)
 
-        # Estilo de etiquetas de campo
         def make_field_label(text):
             lbl = QLabel(text)
-            lbl.setStyleSheet("color: #0f172a; font-size: 14px; font-weight: 600; margin-top: 5px;")
+            lbl.setStyleSheet("color: #0f172a; font-size: 14px; font-weight: 600; margin-bottom: 2px;")
             return lbl
 
-        # Estilo compartido para todos los inputs del formulario
         common_style = """
             QWidget {
                 border: 2px solid #e2e8f0;
@@ -225,55 +221,101 @@ class TrazabilidadView(QWidget):
                 color: #1e293b;
                 background-color: white;
             }
-            QWidget:focus {
-                border: 2px solid #3b82f6;
-                background-color: #f8fafc;
-            }
+            QWidget:focus { border: 2px solid #3b82f6; background-color: #f8fafc; }
         """
 
-        # Fecha de solicitud (solo lectura, se toma del sistema)
-        form_layout.addWidget(make_field_label("Fecha de solicitud"))
+        # FILA 1: Fecha (L) y Tipo (R)
+        row1_layout = QHBoxLayout()
+        row1_layout.setSpacing(40)
+
+        col1_1 = QVBoxLayout()
+        col1_1.setSpacing(6)
+        col1_1.addWidget(make_field_label("Fecha de solicitud"))
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
-        self.date_input.setReadOnly(True)
-        self.date_input.setButtonSymbols(QDateEdit.NoButtons)
-        self.date_input.setToolTip("Indique fecha de cuando se genera la solicitud")
-        self.date_input.setStyleSheet(common_style + "QWidget { background-color: #f1f5f9; color: #64748b; }")
-        form_layout.addWidget(self.date_input)
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setReadOnly(False)
+        self.date_input.setFixedHeight(45)
+        
+        icon_path = resource_path("icons/calendar.svg").as_posix()
+        self.date_input.setStyleSheet(common_style + f"""
+            QDateEdit::drop-down {{
+                image: url("{icon_path}");
+                width: 24px;
+                padding-right: 12px;
+                border: none;
+            }}
+        """)
+        col1_1.addWidget(self.date_input)
+        row1_layout.addLayout(col1_1)
 
-        # Tipo de solicitud
-        form_layout.addWidget(make_field_label("Tipo"))
+        col1_2 = QVBoxLayout()
+        col1_2.setSpacing(6)
+        col1_2.addWidget(make_field_label("Tipo"))
         self.combo_type = QComboBox()
-        self.combo_type.addItems(["Seleccione...", "Solicitud de datos", "Reportar incidencia"])
+        self.combo_type.setFixedHeight(45)
+        self.combo_type.addItems([
+            "Reportar incidencia",
+            "Solicitar información", 
+            "Solicitar acceso",
+            "Solicitar modificación",
+            "Solicitar eliminación",
+            "Otro"
+        ])
+        self.combo_type.setPlaceholderText("Seleccione...")
+        self.combo_type.setCurrentIndex(-1)
         self.combo_type.setStyleSheet(common_style + "QComboBox::drop-down { border: none; width: 30px; }")
-        form_layout.addWidget(self.combo_type)
+        col1_2.addWidget(self.combo_type)
+        row1_layout.addLayout(col1_2)
+        
+        form_layout.addLayout(row1_layout)
 
-        # Descripción libre
-        form_layout.addWidget(make_field_label("Descripción de la solicitud"))
+        # FILA 2: Descripción (Full)
+        desc_col = QVBoxLayout()
+        desc_col.setSpacing(6)
+        desc_col.addWidget(make_field_label("Descripción de la solicitud"))
         self.txt_desc = QTextEdit()
-        self.txt_desc.setFixedHeight(70)
-        self.txt_desc.setToolTip("Describa detalladamente la solicitud de datos")
+        self.txt_desc.setFixedHeight(120)
+        self.txt_desc.setPlaceholderText("Describa detalladamente la solicitud de datos...")
         self.txt_desc.setStyleSheet(common_style)
-        form_layout.addWidget(self.txt_desc)
+        desc_col.addWidget(self.txt_desc)
+        form_layout.addLayout(desc_col)
 
-        # Persona responsable (editable, permite buscar o escribir)
-        form_layout.addWidget(make_field_label("Persona responsable"))
+        # FILA 3: Responsable (L) y Estado (R)
+        row3_layout = QHBoxLayout()
+        row3_layout.setSpacing(40) # Espaciado central uniforme
+
+        col3_1 = QVBoxLayout()
+        col3_1.setSpacing(6)
+        col3_1.addWidget(make_field_label("Persona responsable"))
         self.combo_resp = QComboBox()
+        self.combo_resp.setFixedHeight(45)
         self.combo_resp.setEditable(True)
-        self.combo_resp.addItems(["Seleccione...", "Juan Pérez", "María Silva", "Carlos Muñoz", "Ana Rojas", "Pedro Soto"])
-        self.combo_resp.setToolTip("Nombre de persona que dará respuesta a la solicitud")
+        self.combo_resp.setPlaceholderText("Seleccione...")
+        self.combo_resp.lineEdit().setPlaceholderText("Seleccione...")
+        self.combo_resp.setCurrentIndex(-1)
         self.combo_resp.setStyleSheet(common_style + "QComboBox::drop-down { border: none; width: 30px; }")
-        form_layout.addWidget(self.combo_resp)
+        col3_1.addWidget(self.combo_resp)
+        row3_layout.addLayout(col3_1)
 
-        # Estado de la solicitud
-        form_layout.addWidget(make_field_label("Estado de la solicitud"))
+        col3_2 = QVBoxLayout()
+        col3_2.setSpacing(6)
+        col3_2.addWidget(make_field_label("Estado de la solicitud"))
         self.combo_status = QComboBox()
-        self.combo_status.addItems(["Seleccione...", "Pendiente", "Resuelta", "Cancelada", "Otro"])
+        self.combo_status.setFixedHeight(45)
+        # Restaurado a estados originales de negocio
+        self.combo_status.addItems(["Pendiente", "Resuelta", "Cancelada", "Otro"])
+        self.combo_status.setPlaceholderText("Seleccione...")
+        self.combo_status.setCurrentIndex(-1)
         self.combo_status.setStyleSheet(common_style + "QComboBox::drop-down { border: none; width: 30px; }")
-        form_layout.addWidget(self.combo_status)
+        col3_2.addWidget(self.combo_status)
+        row3_layout.addLayout(col3_2)
 
-        # Campo extra que aparece solo si el estado es "Otro"
+        form_layout.addLayout(row3_layout)
+
+        # Campo extra si es "Otro"
         self.txt_other_status = QLineEdit()
+        self.txt_other_status.setFixedHeight(45)
         self.txt_other_status.setPlaceholderText("Especifique otro estado...")
         self.txt_other_status.setStyleSheet(common_style)
         self.txt_other_status.setVisible(False)
@@ -283,29 +325,34 @@ class TrazabilidadView(QWidget):
             lambda t: self.txt_other_status.setVisible(t == "Otro")
         )
 
-        # Botón de envío
-        self.btn_send_report = QPushButton("ENVIAR")
+        # FILA 4: Botón (Centrado)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self.btn_send_report = QPushButton("Enviar")
         self.btn_send_report.setCursor(Qt.PointingHandCursor)
-        self.btn_send_report.setFixedHeight(50)
+        self.btn_send_report.setFixedSize(160, 45)
         self.btn_send_report.setStyleSheet("""
             QPushButton {
-                background-color: #3b82f6;
+                background-color: #0066cc;
                 color: white;
                 font-weight: bold;
-                font-size: 15px;
-                border-radius: 4px;
-                margin-top: 15px;
+                font-size: 14px;
+                border-radius: 8px;
             }
-            QPushButton:hover { background-color: #2563eb; }
+            QPushButton:hover { background-color: #0052a3; }
         """)
         self.btn_send_report.clicked.connect(self._on_send_report)
-        form_layout.addWidget(self.btn_send_report)
+        btn_row.addWidget(self.btn_send_report)
+        btn_row.addStretch()
+        
+        form_layout.addSpacing(20)
+        form_layout.addLayout(btn_row)
 
-        center_form_layout.addWidget(form_card)
-        center_form_layout.addStretch()
+        center_wrapper.addWidget(form_card)
+        center_wrapper.addStretch()
 
         tab2_reports_layout.addStretch()
-        tab2_reports_layout.addLayout(center_form_layout)
+        tab2_reports_layout.addLayout(center_wrapper)
         tab2_reports_layout.addStretch()
 
         self.main_tabs.addTab(tab2_reports, "  Registro de Solicitudes o Reporte de Incidencias  ")
@@ -313,13 +360,13 @@ class TrazabilidadView(QWidget):
         search_layout.addWidget(self.main_tabs)
         self.stack.addWidget(self.search_state)
 
-        # ── ESTADO 1: Vista de resultados ──────────────────────────────────
+        # --- VISTA DE RESULTADOS ---
         self.results_state = QWidget()
         self.results_layout = QVBoxLayout(self.results_state)
         self.results_layout.setContentsMargins(30, 30, 30, 30)
         self.results_layout.setSpacing(20)
 
-        # Barra superior con botón volver y título
+        # Botón para volver al buscador
         top_bar = QHBoxLayout()
         title_group = QHBoxLayout()
 
@@ -351,7 +398,7 @@ class TrazabilidadView(QWidget):
         top_bar.addLayout(title_group)
         top_bar.addStretch()
 
-        # Tarjeta azul con el RUN consultado y botón refrescar
+        # Panel de resumen del RUN consultado
         self.summary_card = QFrame()
         self.summary_card.setStyleSheet(
             "background-color: #eff6ff; border-radius: 12px; border: 1px solid #dbeafe;"
@@ -382,14 +429,10 @@ class TrazabilidadView(QWidget):
         """)
         summary_layout.addWidget(self.btn_force_refresh)
 
-        # Grillas de resultados en tabs
+        # Grillas de resultados organizadas en pestañas
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #e2e8f0;
-                border-radius: 0 12px 12px 12px;
-                background-color: white;
-            }
+            QTabWidget::pane { border: 1px solid #e2e8f0; border-radius: 0 12px 12px 12px; background-color: white; }
             QTabBar::tab {
                 background-color: #f1f5f9;
                 color: #475569;
@@ -401,24 +444,18 @@ class TrazabilidadView(QWidget):
                 font-size: 13px;
                 margin-right: 2px;
             }
-            QTabBar::tab:selected {
-                background-color: white;
-                color: #1e40af;
-                border-bottom: 2px solid #3b82f6;
-            }
+            QTabBar::tab:selected { background-color: white; color: #1e40af; border-bottom: 2px solid #3b82f6; }
             QTabBar::tab:hover:!selected { background-color: #e2e8f0; }
         """)
 
-        # Tab resultados 1: Consultas personales RIS
+        # Pestaña 1: Consultas personales RIS
         tab1_widget = QWidget()
         tab1_layout = QVBoxLayout(tab1_widget)
         tab1_layout.setContentsMargins(16, 16, 16, 16)
 
         self.grid_consultas = QTableWidget()
         self.grid_consultas.setColumnCount(5)
-        self.grid_consultas.setHorizontalHeaderLabels(
-            ["Origen", "Nombre API", "Tipo", "Fecha Consulta", "Acciones"]
-        )
+        self.grid_consultas.setHorizontalHeaderLabels(["Origen", "Nombre API", "Tipo", "Fecha Consulta", "Acciones"])
         self._apply_grid_style(self.grid_consultas)
         h1 = self.grid_consultas.horizontalHeader()
         h1.setSectionResizeMode(QHeaderView.Fixed)
@@ -433,7 +470,7 @@ class TrazabilidadView(QWidget):
         tab1_layout.addWidget(self.grid_consultas)
         self.tabs.addTab(tab1_widget, "  Consulta Datos Personales RIS  ")
 
-        # Tab resultados 2: Consultas por institución
+        # Pestaña 2: Consultas por institución
         tab2_widget = QWidget()
         tab2_layout = QVBoxLayout(tab2_widget)
         tab2_layout.setContentsMargins(16, 16, 16, 16)
@@ -459,6 +496,15 @@ class TrazabilidadView(QWidget):
 
         self.stack.addWidget(self.results_state)
         self.layout.addWidget(self.stack)
+        
+        # El overlay ya fue creado en init, lo situamos al frente
+        self.loading_overlay.raise_()
+
+    def resizeEvent(self, event):
+        """Asegura que el overlay de carga siempre cubra toda la vista."""
+        if hasattr(self, 'loading_overlay') and self.loading_overlay:
+            self.loading_overlay.resize(event.size())
+        super().resizeEvent(event)
 
     def _apply_grid_style(self, grid: QTableWidget):
         """Aplica el estilo visual estándar a una grilla de resultados."""
@@ -502,39 +548,121 @@ class TrazabilidadView(QWidget):
         self.viewmodel.on_results_ready.connect(self.populate_grid_consultas)
         self.viewmodel.on_instituciones_ready.connect(self.populate_grid_instituciones)
         self.viewmodel.on_instituciones_error.connect(self._handle_instituciones_error)
+        self.viewmodel.on_users_ready.connect(self.populate_responsible_combo)
+        self.viewmodel.on_email_sent.connect(self._handle_email_result)
 
     # ── Acciones del usuario ───────────────────────────────────────────────
 
+    def refresh(self):
+        """Actualiza los datos de la vista, especialmente la lista de responsables."""
+        self.viewmodel.fetch_users()
+
     def on_consultar(self):
-        """Valida el RUN ingresado e inicia la consulta al viewmodel."""
+        """Inicia la búsqueda tras validar que el RUN fue ingresado."""
         run = self.txt_run_card.text().strip()
         if not run:
             self._show_alert("RUN Requerido", "Debe ingresar un RUN para realizar la consulta.")
             return
         self._last_run = run
-        self.lbl_summary_run.setText(f"Consultando RUN: {run}")
         self._clear_grids()
         self.viewmodel.consultar_todo(run)
 
     def _on_send_report(self):
-        """Muestra confirmación al enviar el formulario de solicitud."""
-        resp = self.combo_resp.currentText().strip()
-        if not resp or resp == "Seleccione...":
-            resp = "[PERSONA RESPONSABLE]"
-
-        msg = (
-            f'Se enviará correo a {resp}, el cual tendrá como remitente '
-            f'e-mail SINGDAP@desarrollosocial.gob.cl, con el ASUNTO: "Tiene un Requerimiento SINGDAP."'
+        """Valida, muestra aviso previo e inicia el envío del email a través del backend."""
+        # Validaciones básicas
+        if self.combo_type.currentIndex() == -1:
+            self._show_alert("Validación", "Debe seleccionar un Tipo de solicitud.")
+            return
+        if not self.txt_desc.toPlainText().strip():
+            self._show_alert("Validación", "La descripción no puede estar vacía.")
+            return
+        if self.combo_resp.currentIndex() == -1:
+            self._show_alert("Validación", "Debe seleccionar una Persona responsable.")
+            return
+        
+        name = self.combo_resp.currentText().strip().upper()
+        email = self.combo_resp.currentData()
+        
+        msg_confirm = (
+            f'Se enviará correo a {name} ({email.lower()}), el cual tendrá como remitente '
+            f'e-mail singdap@desarrollosocial.gob.cl, con el ASUNTO: "Tiene un Requerimiento SINGDAP."'
         )
 
+        # Aviso previo antes de procesar el envío
         AlertDialog(
             title="Requerimiento Enviado",
-            message=msg,
-            icon_path="src/resources/icons/check-circle.svg",
+            message=msg_confirm,
+            icon_path="src/resources/icons/alert_info.svg",
             confirm_text="Cerrar",
             cancel_text=None,
             parent=self
         ).exec()
+
+        # 2. Construir el Payload para la API /emails/enviar-formulario
+        # Ahora el valor del tipo es el mismo texto seleccionado (incluyendo acentos y mayúsculas)
+        tipo = self.combo_type.currentText()
+        
+        fecha_iso = self.date_input.date().toString("yyyy-MM-dd")
+        desc_raw = self.txt_desc.toPlainText().strip()
+        nombre_resp = self.combo_resp.currentText().strip()
+        
+        # Estado vuelve a usar el texto (con soporte para 'Otro')
+        estado = self.combo_status.currentText()
+        if estado == "Otro":
+            estado = self.txt_other_status.text().strip() or "Otro"
+
+        # Construimos el objeto conforme al esquema FormularioEmailSchema requerido por el backend
+        payload = {
+            "fecha_solicitud": fecha_iso,
+            "tipo": tipo,
+            "descripcion": desc_raw,
+            "persona_responsable": nombre_resp,
+            "estado_solicitud": estado,
+            "destinatario": email,
+            "destinatario_nombre": nombre_resp,
+            "asunto": "Tiene un requerimiento SINGDAP"
+        }
+        
+        # Iniciamos el proceso de envío asíncrono vía ViewModel
+        self.viewmodel.enviar_email(payload)
+
+    def _handle_email_result(self, result: dict):
+        """Informa al usuario sobre el éxito o fallo del envío del correo."""
+        success = result.get("success", False)
+        error_detail = result.get("error", "")
+
+        if success:
+            AlertDialog(
+                title="CORREO ENVIADO",
+                message="Enviado exitoso",
+                icon_path="src/resources/icons/alert_info.svg",
+                confirm_text="Entendido",
+                cancel_text=None,
+                parent=self
+            ).exec()
+            self._clear_form()
+        else:
+            msg_fail = "No enviado"
+            if error_detail:
+                msg_fail += f"\nDetalle: {error_detail}"
+            
+            AlertDialog(
+                title="Fallo en Envío",
+                message=msg_fail,
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Cerrar",
+                cancel_text=None,
+                parent=self
+            ).exec()
+
+    def _clear_form(self):
+        """Limpia los campos del formulario tras un envío exitoso."""
+        self.combo_type.setCurrentIndex(-1)
+        self.txt_desc.clear()
+        self.combo_resp.setCurrentIndex(-1)
+        self.combo_status.setCurrentIndex(-1)
+        self.txt_other_status.clear()
+        self.date_input.setDate(QDate.currentDate())
 
     def _on_refresh(self):
         """Repite la última consulta sin salir de la vista de resultados."""
@@ -613,10 +741,27 @@ class TrazabilidadView(QWidget):
             cantidad.setTextAlignment(Qt.AlignCenter)
             self.grid_instituciones.setItem(i, 2, cantidad)
 
+    def populate_responsible_combo(self, users):
+        """Puebla el combo de responsables con los usuarios activos de la API."""
+        self.combo_resp.clear()
+        
+        # Primero configuramos el placeholder
+        self.combo_resp.setPlaceholderText("Seleccione...")
+        if self.combo_resp.lineEdit():
+            self.combo_resp.lineEdit().setPlaceholderText("Seleccione...")
+
+        if not users:
+            print("[DEBUG TRAZABILIDAD] No hay usuarios para poblar el combo.")
+            return
+
+        for user in users:
+            self.combo_resp.addItem(user["nombre_completo"], user["email"])
+        
+        self.combo_resp.setCurrentIndex(-1)
+
     def _handle_instituciones_error(self, message):
-        """Marca el tab de instituciones con error si la consulta falla."""
+        """Informa en el tab si hubo un problema al cargar los datos de instituciones."""
         self.tabs.setTabText(1, "  Consultas realizadas por Instituciones (error)  ")
-        print(f"[Trazabilidad] Error al cargar instituciones: {message}")
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -627,15 +772,19 @@ class TrazabilidadView(QWidget):
         return item
 
     def handle_loading(self, is_loading: bool):
-        """Activa/desactiva los botones de consulta mientras se carga."""
+        """Activa/desactiva los botones de consulta y el spinner de carga central."""
         self.btn_consultar_card.setEnabled(not is_loading)
         self.btn_force_refresh.setEnabled(not is_loading)
+        self.btn_send_report.setEnabled(not is_loading)
+        
         if is_loading:
             self.btn_consultar_card.setText("CONSULTANDO...")
             self.setCursor(Qt.WaitCursor)
+            self.loading_overlay.show_loading()
         else:
             self.btn_consultar_card.setText("CONSULTAR")
             self.setCursor(Qt.ArrowCursor)
+            self.loading_overlay.hide_loading()
 
     def handle_error(self, message: str):
         """Muestra un diálogo de error genérico."""

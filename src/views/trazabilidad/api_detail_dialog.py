@@ -23,6 +23,7 @@ class ApiDetailDialog(QDialog):
         self.resize(1220, 860)
         self.setStyleSheet("background-color: #f4f7fb;")
 
+        # Estado inicial y configuración de datos
         self.current_view_mode = "table"
         self.presentacion = None
         self.raw_payload = data
@@ -164,6 +165,7 @@ class ApiDetailDialog(QDialog):
         self.body_layout.addStretch()
 
     def _toggle_view(self):
+        """Alterna entre la vista de tabla y la de listado."""
         self.current_view_mode = "list" if self.current_view_mode == "table" else "table"
         self._refresh_body()
 
@@ -513,6 +515,7 @@ class ApiDetailDialog(QDialog):
         return str(value)
 
     def _humanize_label(self, key):
+        """Convierte las claves técnicas de la API en nombres legibles para el usuario."""
         normalized = re.sub(r"^(DN_|DG_|CD_|ID_)+", "", str(key).upper())
         tokens = [token for token in normalized.split("_") if token]
         acronyms = {"RUN", "RUT", "DV", "AFC", "CIC", "FCS", "API"}

@@ -96,7 +96,16 @@ class ApiClient:
     def post(self, path: str, data: dict):
         url = self._build_url(path)
         response = requests.post(url, json=data, headers=self._headers())
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 422:
+                try:
+                    detail = response.json().get("detail")
+                    print(f"[API ERROR 422] Errores de validación en {path}: {detail}")
+                except Exception:
+                    print(f"[API ERROR 422] Fallo de validación en {path}: {response.text}")
+            raise e
         return response.json()
 
     # ===============================
