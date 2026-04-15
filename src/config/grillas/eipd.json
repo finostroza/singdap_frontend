@@ -65,6 +65,13 @@
     "valor_nulo": "—",
     "indicadores": [
         {
+            "titulo": "EIPD",
+            "descripcion": "Evaluación de impacto para identificar y mitigar riesgos en el tratamiento de datos personales.",
+            "texto_link": "Ver más...",
+            "campo_api": "placeholder",
+            "orden": 0
+        },
+        {
             "titulo": "Total Evaluaciones",
             "campo_api": "total",
             "orden": 1

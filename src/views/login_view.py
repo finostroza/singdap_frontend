@@ -18,6 +18,7 @@ from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
 from src.workers.jwt_utils import decode_jwt
 from src.services.permission_service import PermissionService
+from src.services.inventory_cache_service import InventoryCacheService
 
 
 
@@ -217,8 +218,16 @@ class LoginView(QWidget):
         try:
             me_data = api.get("/users/me")
             api.set_rol_ris(me_data.get("rol_ris") or "")
+            
+            # Guardamos el nombre completo para pre-llenado de formularios
+            full_name = me_data.get("nombre_completo") or f"{me_data.get('nombre', '')} {me_data.get('apellido', '')}".strip()
+            api.set_user_name(full_name or "Usuario Actual")
         except Exception:
             api.set_rol_ris("")
+            api.set_user_name("")
+            
+        # 🚀 Refrescar cache de inventario en segundo plano al iniciar sesión
+        InventoryCacheService().refresh_inventory_cache()
 
         self.main_window = MainWindow()
         self.main_window.logout_signal.connect(self.show)

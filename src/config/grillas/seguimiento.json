@@ -8,6 +8,13 @@
     "campo_id": "id",
     "indicadores": [
         {
+            "titulo": "Seguimiento",
+            "descripcion": "Monitoreo de riesgos identificados y del avance de sus medidas de mitigación.",
+            "texto_link": "Ver más...",
+            "campo_api": "placeholder",
+            "orden": 0
+        },
+        {
             "campo_api": "rat_pendientes",
             "titulo": "RAT por Subsanar",
             "order": 1

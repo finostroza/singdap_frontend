@@ -91,19 +91,26 @@
     "valor_nulo": "—",
     "indicadores": [
         {
-            "titulo": "Total Activos",
-            "campo_api": "total_activos",
+            "titulo": "Inventario",
+            "descripcion": "Catastro de activos de datos personales, bases, sistemas, archivos y repositorios gestionados por la institución.",
+            "texto_link": "Ver más...",
+            "campo_api": "placeholder",
             "orden": 1
         },
         {
-            "titulo": "Con datos sensibles",
-            "campo_api": "confidencial",
+            "titulo": "Total Activos",
+            "campo_api": "total_activos",
             "orden": 2
+        },
+        {
+            "titulo": "Con datos sensibles",
+            "campo_api": "sensible",
+            "orden": 3
         },
         {
             "titulo": "Confid. Reservado",
             "campo_api": "confidencial",
-            "orden": 3
+            "orden": 4
         }
     ],
     "buscador": {

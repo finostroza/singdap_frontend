@@ -60,6 +60,13 @@
     ],
     "indicadores": [
         {
+            "titulo": "RAT",
+            "descripcion": "Registro de Actividades de Tratamiento de datos personales realizadas por la institución.",
+            "texto_link": "Ver más...",
+            "campo_api": "placeholder",
+            "orden": 0
+        },
+        {
             "titulo": "Total RAT",
             "campo_api": "total_rat",
             "orden": 1

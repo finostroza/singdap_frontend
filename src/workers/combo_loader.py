@@ -15,10 +15,13 @@ class ComboLoaderRunnable(QRunnable):
 
     @Slot()
     def run(self):
+        print(f"[WORKER START] Loading data via background thread...")
         try:
             result = self.func(*self.args, **self.kwargs)
+            print(f"[WORKER SUCCESS] Data loaded successfully.")
             self.signals.result.emit(result)
         except Exception as e:
+            print(f"[WORKER ERROR] Failed to load data: {str(e)}")
             self.signals.error.emit(str(e))
         finally:
             self.signals.finished.emit(None)

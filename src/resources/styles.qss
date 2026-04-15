@@ -355,6 +355,18 @@ QLabel#statValue {
     color: #111827;
 }
 
+QLabel#statDescription {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
+QLabel#statLink {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0072ce;
+}
+
 /* =========================
    COMBOBOX FIX (FLECHA NATIVA)
 ========================= */

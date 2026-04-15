@@ -31,7 +31,7 @@
                     "description": "Seleccione la naturaleza del activo de datos según su forma de implementación.",
                     "type": "combo",
                     "source": "/catalogos/tipo-activo",
-                    "cache_key": "catalogo_tipos_v3",
+                    "cache_key": "catalogo_tipos_v5",
                     "required": true
                 },
                 {
@@ -244,50 +244,45 @@
             ]
         },
         {
-            "title": "4. Categoría de Datos",
+            "title": "4. Categoría de datos personales tratados",
             "description": "Clasificación de la información contenida.",
             "fields": [
                 {
                     "key": "categoria_ids",
-                    "label": "Categoría",
+                    "label": "Categoría de datos personales tratados",
                     "description": "Seleccione una o más categorías que correspondan al activo.",
                     "type": "combo",
                     "multiple": true,
                     "source": "/catalogos/categoria-activo",
-                    "cache_key": "catalogo_categorias_v3",
+                    "cache_key": "catalogo_categorias_v4",
+                    "triggers_reload": [
+                        "categoria_sensible_especifica"
+                    ],
                     "required": true
                 },
                 {
-                    "key": "datos_sensibles",
-                    "label": "¿Tiene datos Sensibles?",
-                    "description": "Indique si el activo de datos contiene datos personales de carácter sensible, conforme a la normativa vigente.",
-                    "type": "combo_static",
-                    "options": [
-                        {
-                            "id": false,
-                            "nombre": "No"
-                        },
-                        {
-                            "id": true,
-                            "nombre": "Sí"
-                        }
-                    ],
+                    "key": "categoria_sensible_especifica",
+                    "label": "Especificación de datos sensibles",
+                    "description": "Especifique el tipo de dato personal sensible contenido en el activo.",
+                    "type": "combo",
+                    "depends_on": "categoria_ids",
+                    "depends_type": "nested",
+                    "nested_key": "subcategorias",
+                    "required": true,
                     "visible_when": {
                         "field": "categoria_ids",
-                        "contains": "Dato Personal - Sensible"
-                    },
-                    "required": true
+                        "contains": "Datos sensibles (especificar):"
+                    }
                 },
                 {
-                    "key": "tipo_sensible",
-                    "label": "Tipo Sensible",
-                    "description": "Especifique el tipo de dato personal sensible contenido en el activo, solo en caso de haber indicado que sí existen datos sensibles.",
-                    "type": "combo",
-                    "source": "/catalogos/tipo-sensible",
-                    "required": false,
+                    "key": "categoria_sensible_especificar_otro",
+                    "label": "Especifique Otro tipo de dato",
+                    "description": "Indique la naturaleza de los otros datos personales tratados.",
+                    "type": "text",
+                    "required": true,
                     "visible_when": {
-                        "field": "datos_sensibles",
-                        "value": true
+                        "field": "categoria_sensible_especifica",
+                        "contains": "Otros datos personales (especificar):"
                     }
                 }
             ]
