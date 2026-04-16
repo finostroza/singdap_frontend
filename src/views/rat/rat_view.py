@@ -11,5 +11,5 @@ class RatView(GenericGridView):
 
     def refresh(self):
         """Asegurar que al entrar al módulo se vea el grid y se actualice"""
-        if hasattr(self.grid_view, "refresh"):
-            self.grid_view.refresh()
+        self._reload_all()
+

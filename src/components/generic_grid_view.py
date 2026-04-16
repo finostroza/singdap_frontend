@@ -240,15 +240,28 @@ class GenericGridView(QWidget):
         # Export button (penultimate)
         self.export_btn = QPushButton("Exportar Grilla")
         self.export_btn.setObjectName("gridExportButton")
-        export_menu = QMenu(self)
-        csv_action = export_menu.addAction("Exportar a CSV")
-        pdf_action = export_menu.addAction("Exportar a PDF")
-        csv_action.triggered.connect(self._export_csv)
-        pdf_action.triggered.connect(self._export_pdf)
-        self.export_btn.setMenu(export_menu)
+        
+        export_config = self.config.get("exportar", {})
+        allowed_formats = export_config.get("formatos", ["csv", "pdf"]) # Default to both
+        
+        if len(allowed_formats) > 1:
+            export_menu = QMenu(self)
+            if "csv" in allowed_formats:
+                csv_action = export_menu.addAction("Exportar a CSV")
+                csv_action.triggered.connect(self._export_csv)
+            if "pdf" in allowed_formats:
+                pdf_action = export_menu.addAction("Exportar a PDF")
+                pdf_action.triggered.connect(self._export_pdf)
+            self.export_btn.setMenu(export_menu)
+        elif len(allowed_formats) == 1:
+            fmt = allowed_formats[0].lower()
+            if fmt == "csv":
+                self.export_btn.clicked.connect(self._export_csv)
+            elif fmt == "pdf":
+                self.export_btn.clicked.connect(self._export_pdf)
         
         # Check if export is enabled in config (default True for backward compatibility)
-        if self.config.get("exportar", {}).get("habilitado", True):
+        if export_config.get("habilitado", True):
             self.filters_layout.addWidget(self.export_btn)
         else:
             self.export_btn.hide()

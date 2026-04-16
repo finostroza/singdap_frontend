@@ -1744,24 +1744,28 @@ class GenericFormDialog(QDialog):
              combo.updateText()
 
         # Re-try applying value to THIS combo if we already have asset_data (Edit mode).
-        # We do NOT call _try_set_values here (it would cause an infinite loop: each call
-        # to _on_combo_data for the nested combo would schedule another _try_set_values,
-        # which would call _on_trigger_changed again, clearing the combo, repeat forever).
-        # Instead, directly find and apply the pending value for this specific combo.
         if self.asset_data and not self.is_setting_values:
             for k, w in list(self.inputs.items()):
                 if w is combo:
                     pending_val = self.asset_data.get(k)
-                    if pending_val is not None and hasattr(combo, 'setCurrentData'):
-                        if isinstance(pending_val, str):
-                            try:
-                                pending_val = json.loads(pending_val)
-                            except Exception:
+                    if pending_val is not None:
+                        if hasattr(combo, 'setCurrentData'):
+                            if isinstance(pending_val, str):
+                                try:
+                                    pending_val = json.loads(pending_val)
+                                except Exception:
+                                    pending_val = [pending_val]
+                            if not isinstance(pending_val, list):
                                 pending_val = [pending_val]
-                        if not isinstance(pending_val, list):
-                            pending_val = [pending_val]
-                        combo.setCurrentData(pending_val)
+                            combo.setCurrentData(pending_val)
+                        else:
+                            self._set_combo_value(combo, pending_val)
+                            
+                            # If this combo triggers others (like origen_datos triggers activos), run logic
+                            if k in self.dependencies:
+                                self._on_trigger_changed(k, combo.currentIndex())
                     break
+                    
         # Always recheck visibility after populating a combo — covers manual and edit mode
         QTimer.singleShot(10, self._recheck_all_visibility)
         QTimer.singleShot(15, self._apply_all_direct_visibility)

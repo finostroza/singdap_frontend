@@ -166,6 +166,20 @@ class LoginView(QWidget):
         if not user or not password:
             self._set_error("Debe ingresar usuario y contraseña")
             return
+            
+        if "-" not in user:
+            from src.components.alert_dialog import AlertDialog
+            dialog = AlertDialog(
+                title="Formato de Usuario Inválido",
+                message="El RUT ingresado debe incluir su dígito verificador separado por un guión.\n\nFormato esperado: 99999999-9",
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Entendido",
+                cancel_text="",
+                parent=self
+            )
+            dialog.exec()
+            self.user_input.setFocus()
+            return
 
         self.status_label.setText("")
         LoggerService().log_event(f"Intento de inicio de sesión: {user}")

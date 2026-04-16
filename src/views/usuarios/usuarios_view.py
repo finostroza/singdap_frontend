@@ -116,6 +116,12 @@ class UsuariosView(QWidget):
         else:
             self._load_backend_data()
 
+    def refresh(self):
+        """Actualizar los datos al navegar al módulo"""
+        if self.permission_service.has_module_access(self.perm_module):
+            self._load_backend_data()
+
+
     def _convert_local_perms_to_payload(self, local_perms: dict):
         """Convierte la matriz de memoria de PermissionService al formato que espera el mapeador."""
         api_format = []

@@ -481,6 +481,39 @@ class RatDialog(GenericFormDialog):
             for k, v in titulares.items():
                 if k not in data:
                     data[k] = v
+            # Asegurar mapeo de nombres para formulario Institucional
+            if "origen_datos" in titulares:
+                data["origen_datos_titulares"] = titulares["origen_datos"]
+            if "medio_recoleccion" in titulares:
+                data["medio_recoleccion_titulares"] = titulares["medio_recoleccion"]
+            if "origen_datos_otro" in titulares:
+                data["origen_datos_otro_titulares"] = titulares["origen_datos_otro"]
+            if "medio_recoleccion_otro" in titulares:
+                data["medio_recoleccion_otro_titulares"] = titulares["medio_recoleccion_otro"]
+
+        # ── CRÍTICO: CARGAR ACTIVOS DESDE LA API DEDICADA ──
+        if self.record_id:
+            try:
+                act_resp = self.client.get(f"/rat/{self.record_id}/activos")
+                asset_ids = []
+                if isinstance(act_resp, dict):
+                    lista = act_resp.get("activo_ids") or act_resp.get("activos") or act_resp.get("items") or []
+                    if isinstance(lista, list):
+                        for i in lista:
+                            if isinstance(i, str): asset_ids.append(i)
+                            elif isinstance(i, dict) and "id" in i: asset_ids.append(i["id"])
+                            elif isinstance(i, dict) and "activo_id" in i: asset_ids.append(i["activo_id"])
+                elif isinstance(act_resp, list):
+                    for i in act_resp:
+                        if isinstance(i, str): asset_ids.append(i)
+                        elif isinstance(i, dict) and "id" in i: asset_ids.append(i["id"])
+                        elif isinstance(i, dict) and "activo_id" in i: asset_ids.append(i["activo_id"])
+                
+                if asset_ids:
+                    data["activo_id"] = asset_ids
+                    data["activo_id_titulares"] = asset_ids
+            except Exception as e:
+                print(f"Error cargando activos del RAT desde API: {e}")
 
         # ── CRÍTICO: guardar copia virgen con los titulares ya aplanados ──
         # _unflatten_hierarchical_categories comprueba `if not self._raw_asset_data: return`
@@ -739,6 +772,56 @@ class RatDialog(GenericFormDialog):
         }
         self.client.put(f"{base}/explicabilidad", payload_explicabilidad)
 
+    def _sync_rat_assets(self, data):
+        """Sincroniza los activos del inventario mediante el endpoint dedicado."""
+        if not self.record_id:
+            return
+
+        import json
+
+        # Obtener IDs del formulario directamente
+        asset_ids = []
+        
+        # 1. Intentar desde self.inputs (el widget directamente)
+        widget = self.inputs.get("activo_id_titulares") or self.inputs.get("activo_id")
+        if widget and hasattr(widget, "currentData"):
+            val = widget.currentData()
+            if isinstance(val, list):
+                asset_ids = val
+            elif val:
+                asset_ids = [val]
+
+        # 2. Si no hay nada, intentar desde el data
+        if not asset_ids:
+            raw = data.get("activo_id_titulares")
+            if not raw:
+                raw = data.get("activo_id")
+            
+            if isinstance(raw, list):
+                asset_ids = raw
+            elif isinstance(raw, str):
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        asset_ids = parsed
+                    else:
+                        asset_ids = [raw]
+                except:
+                    asset_ids = [raw]
+            elif raw:
+                asset_ids = [raw]
+
+        # Asegurarnos de que sean cadenas limpias y no vacios
+        final_ids = []
+        for a_id in asset_ids:
+            if a_id and isinstance(a_id, str):
+                final_ids.append(a_id)
+
+        try:
+            self.client.put(f"/rat/{self.record_id}/activos", {"activo_ids": final_ids})
+        except Exception as e:
+            print(f"Error sincronizando activos RAT: {e}")
+
     def _save_seccion_simplificado(self, data):
         # 1. Guardamos la parte principal (Simplificado)
         payload_simp = {
@@ -811,6 +894,10 @@ class RatDialog(GenericFormDialog):
             if isinstance(pob_vulnerable, list):
                 pob_vulnerable = json.dumps(pob_vulnerable)
 
+            activo_ids = data.get("activo_id")
+            if isinstance(activo_ids, list):
+                activo_ids = json.dumps(activo_ids)
+
             payload_titulares = {
                 # 🔹 DATOS PERSONALES
                 "categoria_datos": cat_datos,
@@ -826,7 +913,7 @@ class RatDialog(GenericFormDialog):
                 # 🔹 OTROS
                 "tipo_datos": data.get("tipos_datos"),
                 "origen_datos": data.get("origen_datos"),
-                "activo_id": data.get("activo_id"),
+                "activo_id": activo_ids,
                 "medio_recoleccion": data.get("medio_recoleccion"),
                 "medio_recoleccion_otro": data.get("medio_recoleccion_otro"),
 
@@ -838,6 +925,9 @@ class RatDialog(GenericFormDialog):
                 ),
             }
             self.client.put(f"/rat/{self.record_id}/titulares", payload_titulares)
+            
+            # 3. Sincronizar activos (NUEVO ENDPOINT)
+            self._sync_rat_assets(data)
             
         except Exception as e:
             print(f"Error guardando titulares: {e}")
@@ -915,6 +1005,10 @@ class RatDialog(GenericFormDialog):
         if isinstance(pob_vulnerable, list):
             pob_vulnerable = json.dumps(pob_vulnerable)
         
+        activo_ids = data.get("activo_id_titulares")
+        if isinstance(activo_ids, list):
+            activo_ids = json.dumps(activo_ids)
+
         payload_titulares = {
                 # 🔹 DATOS PERSONALES
                 "categoria_datos": cat_datos,
@@ -931,7 +1025,7 @@ class RatDialog(GenericFormDialog):
                 "origen_datos_otro": data.get("origen_datos_otro_titulares"),
                 "medio_recoleccion": data.get("medio_recoleccion_titulares"),
                 "medio_recoleccion_otro": data.get("medio_recoleccion_otro_titulares"),
-                "activo_id": data.get("activo_id_titulares"),
+                "activo_id": activo_ids,
 
                 "volumen_datos": data.get("volumen_datos"),
                 "cantidad_archivos": data.get("cantidad_archivos"),
@@ -941,6 +1035,9 @@ class RatDialog(GenericFormDialog):
                 ),
             }
         self.client.put(f"/rat/{self.record_id}/titulares", payload_titulares)
+        
+        # Sincronizar activos (NUEVO ENDPOINT)
+        self._sync_rat_assets(data)
             
 
     def _save_riesgos(self, data):

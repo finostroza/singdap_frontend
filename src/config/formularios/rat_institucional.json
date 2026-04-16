@@ -283,6 +283,7 @@
                     "key": "activo_id_titulares",
                     "label": "Seleccione Activo del Inventario",
                     "type": "combo",
+                    "multiple": true,
                     "source": "/activos/catalogos",
                     "cache_key": "catalogo_inventario_activos",
                     "required": true,

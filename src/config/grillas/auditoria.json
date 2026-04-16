@@ -86,6 +86,7 @@
         "habilitado": false
     },
     "exportar": {
-        "habilitado": false
+        "habilitado": true,
+        "formatos": ["csv"]
     }
 }
