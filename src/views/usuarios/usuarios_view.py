@@ -31,6 +31,7 @@ class UsuariosView(QWidget):
     def __init__(self):
         super().__init__()
         self.loading_overlay = LoadingOverlay(self)
+        self.is_loading = False
         self.api = ApiClient()
         self.user_service = UserService()
         self.cache_manager = CacheManager()
@@ -298,6 +299,10 @@ class UsuariosView(QWidget):
         return card
 
     def _load_backend_data(self, force_refresh=False):
+        if self.is_loading:
+            return
+            
+        self.is_loading = True
         self.loading_overlay.show_loading()
         
         current_page_val = self.current_page
@@ -412,6 +417,7 @@ class UsuariosView(QWidget):
         self.worker.start()
 
     def _on_data_loaded(self, data):
+        self.is_loading = False
         self.loading_overlay.hide_loading()
         self.users_data = data.get("users", [])
         self.has_next = data.get("has_next", False)
@@ -469,6 +475,7 @@ class UsuariosView(QWidget):
             self._update_matrix_for_user(self.current_user_index)
 
     def _on_data_error(self, error):
+        self.is_loading = False
         self.loading_overlay.hide_loading()
         QMessageBox.warning(
             self,
