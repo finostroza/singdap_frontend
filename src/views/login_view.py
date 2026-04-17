@@ -244,10 +244,16 @@ class LoginView(QWidget):
         InventoryCacheService().refresh_inventory_cache()
 
         self.main_window = MainWindow()
-        self.main_window.logout_signal.connect(self.show)
+        self.main_window.logout_signal.connect(self._on_logout)
         self.main_window.show()
 
         self.hide()
+
+    def _on_logout(self):
+        """Handler para limpiar la vista al cerrar sesión."""
+        self._reset_login_form()
+        self.status_label.setText("")
+        self.show()
 
     def _reset_login_form(self):
         """Limpia el formulario y devuelve el foco al usuario."""
