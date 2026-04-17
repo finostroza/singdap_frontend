@@ -119,7 +119,7 @@ class UsuariosView(QWidget):
     def refresh(self):
         """Actualizar los datos al navegar al módulo"""
         if self.permission_service.has_module_access(self.perm_module):
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=False)
 
 
     def _convert_local_perms_to_payload(self, local_perms: dict):
@@ -297,7 +297,7 @@ class UsuariosView(QWidget):
 
         return card
 
-    def _load_backend_data(self):
+    def _load_backend_data(self, force_refresh=False):
         self.loading_overlay.show_loading()
         
         current_page_val = self.current_page
@@ -361,13 +361,21 @@ class UsuariosView(QWidget):
                         else:
                             search_nombre = current_search_val
 
-                    paged_response = self.user_service.list_users(
-                        page=current_page_val,
-                        size=current_size_val,
-                        nombre=search_nombre,
-                        rut=search_rut,
-                        email=search_email
-                    )
+                    paged_response = None
+                    cache_key = f"usuarios_list_p{current_page_val}_s{current_size_val}_q{current_search_val}"
+                    if not force_refresh:
+                        paged_response = self.cache_manager.get(cache_key)
+                    
+                    if not paged_response:
+                        paged_response = self.user_service.list_users(
+                            page=current_page_val,
+                            size=current_size_val,
+                            nombre=search_nombre,
+                            rut=search_rut,
+                            email=search_email
+                        )
+                        self.cache_manager.set(cache_key, paged_response)
+                        
                     users_list = paged_response.get("items", [])
                     result["has_next"] = paged_response.get("has_next", False)
                     result["total"] = paged_response.get("total", 0)
@@ -381,21 +389,20 @@ class UsuariosView(QWidget):
             for user in users_list:
                 user_id = str(user.get("id", ""))
                 perms_payload = me_permissions if user_id == str(me.get("id")) else None
+                is_loaded = perms_payload is not None
+                
                 if perms_payload is None:
-                    try:
-                        perms_payload = self.user_service.get_permissions(user_id)
-                    except Exception:
-                        perms_payload = {
-                            "permisos": []
-                        }
+                    perms_payload = {
+                        "permisos": []
+                    }
 
-                result["users"].append(
-                    self._build_user_from_api(
-                        user,
-                        perms_payload,
-                        result["privilege_name_by_code"],
-                    )
+                user_dict = self._build_user_from_api(
+                    user,
+                    perms_payload,
+                    result["privilege_name_by_code"],
                 )
+                user_dict["permissions_loaded"] = is_loaded
+                result["users"].append(user_dict)
 
             return result
 
@@ -441,19 +448,25 @@ class UsuariosView(QWidget):
                         module_key: (False, False, False, False, False, False)
                         for _, module_key in self.modules
                     },
+                    "permissions_loaded": True
                 }
             ]
         else:
             for user in self.users_data:
                 # Solo aplicamos el mockup (overrides) si el usuario NO tiene permisos reales del backend
                 # Si el usuario ya tiene permisos (vienen del API), esos mandan sobre la cache.
-                has_real_perms = any(any(v) for v in user["permissions"].values())
-                if not has_real_perms:
-                    self._apply_permissions_override(user)
+                if user.get("permissions_loaded", False):
+                    has_real_perms = any(any(v) for v in user["permissions"].values())
+                    if not has_real_perms:
+                        self._apply_permissions_override(user)
 
         self.current_user_index = 0
         self._populate_user_list()
-        self._update_matrix_for_user(self.current_user_index)
+        
+        if self.users_data and not self.users_data[self.current_user_index].get("permissions_loaded", False):
+            self._load_user_permissions(self.current_user_index)
+        else:
+            self._update_matrix_for_user(self.current_user_index)
 
     def _on_data_error(self, error):
         self.loading_overlay.hide_loading()
@@ -831,7 +844,7 @@ class UsuariosView(QWidget):
         # Ocultar o simular carga si es necesario, pero aquí solo se muestra el form
         if dialog.exec():
             # Si el modal se guardó con éxito (HTTP 200), refrescar la lista para remover el status PENDIENTE
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=True)
 
     def _on_toggle_user_status(self, user_index):
         # 🔒 SEGURIDAD: Solo ADMIN
@@ -936,7 +949,7 @@ class UsuariosView(QWidget):
             # Limpiar cache local de este usuario
             user_cache_id = self._user_cache_id({"backend_id": None, "id": None}) # Dummy call to get logic
             # En realidad mejor recargar todo
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=True)
 
     def _on_delete_user_error(self, error):
         self.loading_overlay.hide_loading()
@@ -973,25 +986,87 @@ class UsuariosView(QWidget):
         self.current_user_index = user_index
         self._populate_user_list()
         
-        # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
-        self._update_matrix_for_user(user_index)
+        user = self.users_data[user_index]
+        if not user.get("permissions_loaded", False):
+            self._load_user_permissions(user_index)
+        else:
+            # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
+            self._update_matrix_for_user(user_index)
+
+    def _load_user_permissions(self, user_index):
+        if user_index < 0 or user_index >= len(self.users_data):
+            return
+            
+        user = self.users_data[user_index]
+        user_id = user.get("backend_id")
+        
+        self.loading_overlay.show_loading()
+        
+        def fetch_perms():
+            try:
+                return self.user_service.get_permissions(user_id)
+            except Exception:
+                return {"permisos": []}
+
+        def on_loaded(perms_payload):
+            self.loading_overlay.hide_loading()
+            
+            # Validamos que el usuario siga existiendo (pudo haber cambiado de página)
+            if user_index >= len(self.users_data) or self.users_data[user_index].get("backend_id") != user_id:
+                return
+                
+            permissions = self._map_permissions_to_modules(
+                perms_payload,
+                self.privilege_name_by_code,
+            )
+            
+            user["packs"] = len((perms_payload or {}).get("packs", []))
+            user["permissions"] = permissions.get("matrix", {})
+            user["action_ids"] = permissions.get("action_ids", {})
+            user["permissions_loaded"] = True
+            
+            has_real_perms = any(any(v) for v in user["permissions"].values())
+            if not has_real_perms:
+                self._apply_permissions_override(user)
+                
+            self._populate_user_list()
+            # Actualizamos la matriz si el usuario sigue seleccionado
+            if self.current_user_index == user_index:
+                self._update_matrix_for_user(user_index)
+            
+        def on_error(err):
+            self.loading_overlay.hide_loading()
+            if self.current_user_index == user_index:
+                self._update_matrix_for_user(user_index)
+
+        worker = ApiWorker(fetch_perms)
+        self.active_workers.append(worker)
+        
+        def on_finished():
+            if worker in self.active_workers:
+                self.active_workers.remove(worker)
+                
+        worker.finished.connect(lambda _: on_finished())
+        worker.finished.connect(on_loaded)
+        worker.error.connect(on_error)
+        worker.start()
 
     def _on_search_text_changed(self, _text):
         self.search_timer.start()
 
     def _on_search_timeout(self):
         self.current_page = 1
-        self._load_backend_data()
+        self._load_backend_data(force_refresh=True)
 
     def _on_prev_page(self):
         if self.current_page > 1:
             self.current_page -= 1
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=False)
 
     def _on_next_page(self):
         if self.has_next:
             self.current_page += 1
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=False)
 
     def _update_matrix_for_user(self, user_index):
         if not self.users_data:
