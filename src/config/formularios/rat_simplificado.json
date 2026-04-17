@@ -220,8 +220,37 @@
                     "type": "combo",
                     "multiple": true,
                     "source": "/catalogos/rat/categoria-datos-personales",
-                    "cache_key": "catalogo_rat_categoria_datos_personales",
+                    "cache_key": "catalogo_rat_categoria_datos_personales_v2",
+                    "triggers_reload": [
+                        "categorias_datos_sensibles"
+                    ],
                     "required": true
+                },
+                {
+                    "key": "categorias_datos_sensibles",
+                    "label": "Especificación de datos sensibles",
+                    "description": "Especifique el tipo de dato personal sensible contenido en el tratamiento.",
+                    "type": "combo",
+                    "multiple": true,
+                    "depends_on": "categorias_datos_personales",
+                    "depends_type": "nested",
+                    "nested_key": "subcategorias",
+                    "required": true,
+                    "visible_when": {
+                        "field": "categorias_datos_personales",
+                        "contains": "Datos sensibles"
+                    }
+                },
+                {
+                    "key": "categorias_datos_otro",
+                    "label": "Especifique Otro tipo de dato",
+                    "description": "Indique la naturaleza de los otros datos personales tratados.",
+                    "type": "text",
+                    "required": true,
+                    "visible_when": {
+                        "field": "categorias_datos_sensibles",
+                        "contains": "Otros datos personales"
+                    }
                 },
                 {
                     "key": "poblaciones_vulnerables",
@@ -232,6 +261,17 @@
                     "source": "/catalogos/rat/poblacion-especial",
                     "cache_key": "catalogo_rat_poblacion-especial",
                     "required": true
+                },
+                {
+                    "key": "poblaciones_vulnerables_otro",
+                    "label": "Especifique Otra población o grupo",
+                    "description": "Indique la naturaleza del grupo vulnerable no listado.",
+                    "type": "text",
+                    "required": true,
+                    "visible_when": {
+                        "field": "poblaciones_vulnerables",
+                        "contains": "Otra"
+                    }
                 },
                 {
                     "key": "tipos_datos",
@@ -252,12 +292,39 @@
                     "required": true
                 },
                 {
+                    "key": "activo_id",
+                    "label": "Seleccione Activo del Inventario",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/activos/catalogos",
+                    "cache_key": "catalogo_inventario_activos",
+                    "required": true,
+                    "visible_when": {
+                        "field": "origen_datos",
+                        "contains": "Inventario"
+                    }
+                },
+                {
                     "key": "medio_recoleccion",
                     "label": "Medio recoleccion",
                     "type": "combo",
                     "source": "/catalogos/rat/medio-recoleccion",
-                    "cache_key": "catalogo_rat_medio_recoleccion",
-                    "required": true
+                    "cache_key": "catalogo_rat_medio_recoleccion_simp",
+                    "required": true,
+                    "visible_when": {
+                        "field": "origen_datos",
+                        "contains": "Otra"
+                    }
+                },
+                {
+                    "key": "medio_recoleccion_otro",
+                    "label": "Especifique el Medio de recolección",
+                    "type": "text",
+                    "required": true,
+                    "visible_when": {
+                        "field": "medio_recoleccion",
+                        "contains": "Otra"
+                    }
                 },
                 {
                     "key": "volumen_datos",

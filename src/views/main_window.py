@@ -17,6 +17,7 @@ from src.viewmodels.dashboard_viewmodel import DashboardViewModel
 from src.views.seguimiento.seguimiento_riesgos_view import SeguimientoRiesgosView
 from src.services.permission_service import PermissionService
 from src.views.home.home_view import HomeView
+from src.views.auditoria.auditoria_view import AuditoriaView
 
 
 class MainWindow(QMainWindow):
@@ -56,6 +57,7 @@ class MainWindow(QMainWindow):
         self.trazabilidad_view = TrazabilidadView()
         self.usuarios_view = UsuariosView()
         self.dashboard_view = DashboardView(DashboardViewModel())
+        self.auditoria_view = AuditoriaView()
 
         # Stack indexes (Matching Sidebar order)
         self.stack.addWidget(self.home_view)           # 0
@@ -66,6 +68,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.trazabilidad_view)   # 5
         self.stack.addWidget(self.usuarios_view)       # 6
         self.stack.addWidget(self.dashboard_view)      # 7
+        self.stack.addWidget(self.auditoria_view)      # 8
 
         # ===============================
         # Layout
@@ -118,6 +121,10 @@ class MainWindow(QMainWindow):
             lambda: self._navigate(7, 7)
         )
 
+        self.sidebar.btn_auditoria.clicked.connect(
+            lambda: self._navigate(8, 8)
+        )
+
         # ===============================
         # Estado inicial
         # ===============================
@@ -138,3 +145,8 @@ class MainWindow(QMainWindow):
     def _navigate(self, stack_index: int, sidebar_index: int):
         self.stack.setCurrentIndex(stack_index)
         self.sidebar.set_active(sidebar_index)
+        
+        # Llamar al método refresh si la vista lo implementa
+        current_widget = self.stack.currentWidget()
+        if hasattr(current_widget, "refresh") and callable(getattr(current_widget, "refresh")):
+            current_widget.refresh()

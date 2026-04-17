@@ -9,7 +9,9 @@
         "crear": "/rat",
         "editar": "/rat/{id}/full",
         "eliminar": "/rat/{id}",
-        "duplicar": "/rat/{id}/nueva-version"
+        "duplicar": "/rat/{id}/nueva-version",
+        "exportar_pdf": "/rat/exportar-pdf-grilla",
+        "exportar_detalle_pdf": "/rat/{id}/exportar-pdf"
     },
     "campo_id": "rat_id",
     "columnas": [
@@ -58,6 +60,13 @@
     ],
     "indicadores": [
         {
+            "titulo": "RAT",
+            "descripcion": "Registro de Actividades de Tratamiento de datos personales realizadas por la institución.",
+            "texto_link": "Ver más...",
+            "campo_api": "placeholder",
+            "orden": 0
+        },
+        {
             "titulo": "Total RAT",
             "campo_api": "total_rat",
             "orden": 1
@@ -77,17 +86,6 @@
             "orden": 1
         },
         {
-            "id": "duplicar",
-            "icono": "src/resources/icons/stickies.svg",
-            "tipo": "duplicate",
-            "tooltip": "Duplicar RAT",
-            "orden": 3,
-            "visible_if": {
-                "campo": "estado",
-                "valor": "APROBADO"
-            }
-        },
-        {
             "id": "eliminar",
             "icono": "src/resources/icons/delete.svg",
             "tipo": "delete",
@@ -96,6 +94,24 @@
                 "mensaje": "¿Deseas eliminar este registro?"
             },
             "orden": 2
+        },
+        {
+            "id": "exportar",
+            "icono": "src/resources/icons/download.svg",
+            "tipo": "export_row",
+            "tooltip": "Exportar Registro",
+            "orden": 3
+        },
+        {
+            "id": "duplicar",
+            "icono": "src/resources/icons/stickies.svg",
+            "tipo": "duplicate",
+            "tooltip": "Duplicar RAT",
+            "orden": 4,
+            "visible_if": {
+                "campo": "estado",
+                "valor": "APROBADO"
+            }
         }
     ],
     "boton_nuevo": {

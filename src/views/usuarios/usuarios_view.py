@@ -63,6 +63,9 @@ class UsuariosView(QWidget):
             ("Usuarios / Roles", "USUARIOS"),
             ("RAT", "RAT"),
             ("Trazabilidad", "TRAZABILIDAD"),
+            ("Seguimiento de Riesgos", "SEGUIMIENTO"),
+            ("Reportes", "REPORTES"),
+            ("Auditoría", "AUDITORIA"),
         ]
 
         self.module_aliases = {
@@ -70,7 +73,10 @@ class UsuariosView(QWidget):
             "EIPD": ["eipd", "pia"],
             "USUARIOS": ["usuario", "usuarios", "rol", "roles"],
             "RAT": ["rat"],
-            "TRAZABILIDAD": ["trazabilidad"],
+            "TRAZABILIDAD": ["trazabilidad", "trace"],
+            "SEGUIMIENTO": ["seguimiento", "riesgos", "followup"],
+            "REPORTES": ["reportes", "dashboard", "reporte"],
+            "AUDITORIA": ["auditoria", "log", "audit", "historial", "admin"],
         }
 
         self.privilege_name_by_code = {}
@@ -109,6 +115,26 @@ class UsuariosView(QWidget):
             self._show_permission_block()
         else:
             self._load_backend_data()
+
+    def refresh(self):
+        """Actualizar los datos al navegar al módulo"""
+        if self.permission_service.has_module_access(self.perm_module):
+            self._load_backend_data(force_refresh=False)
+
+
+    def _convert_local_perms_to_payload(self, local_perms: dict):
+        """Convierte la matriz de memoria de PermissionService al formato que espera el mapeador."""
+        api_format = []
+        # local_perms es Dict[str, Dict[str, bool]] como {'INVENTARIO': {'VER': True, ...}}
+        for mod_key, actions in local_perms.items():
+            for action_key, allowed in actions.items():
+                if allowed: # Solo incluimos los permitidos para mayor claridad
+                    api_format.append({
+                        "modulo_codigo": mod_key,
+                        "accion_codigo": action_key,
+                        "permitido": True
+                    })
+        return {"permisos": api_format}
 
     def _show_permission_block(self):
         """Muestra un mensaje de bloqueo cuando el usuario no tiene permiso VER."""
@@ -271,7 +297,7 @@ class UsuariosView(QWidget):
 
         return card
 
-    def _load_backend_data(self):
+    def _load_backend_data(self, force_refresh=False):
         self.loading_overlay.show_loading()
         
         current_page_val = self.current_page
@@ -292,10 +318,13 @@ class UsuariosView(QWidget):
             
             # Intentamos obtener permisos propios, si falla (403) asumimos permisos vacíos.
             try:
-                me_permissions = self.user_service.get_permissions(str(me["id"]))
+                me_permissions = self.user_service.get_permissions(str(me.get("id")))
             except Exception as e:
-                print(f"No se pudieron cargar permisos propios (Probable usuario no-admin): {e}")
-                me_permissions = {"permisos": []}
+                print(f"No se pudieron cargar permisos propios de la nube (Caso usuario no-admin): {e}")
+                # FALLBACK CRÍTICO: Usamos lo que PermissionService ya sabe que tiene el usuario por su sesión
+                local_perms = self.permission_service._user_permissions
+                me_permissions = self._convert_local_perms_to_payload(local_perms)
+
 
             try:
                 privilegios = self.user_service.list_privilegios()
@@ -316,7 +345,8 @@ class UsuariosView(QWidget):
                 result["master_action_ids"] = {}
 
             users_list = []
-            if self.api.is_admin:
+            # Cargamos la lista de usuarios si tiene permiso VER el módulo
+            if self.permission_service.has_module_access(self.perm_module):
                 try:
                     search_nombre = None
                     search_rut = None
@@ -331,13 +361,21 @@ class UsuariosView(QWidget):
                         else:
                             search_nombre = current_search_val
 
-                    paged_response = self.user_service.list_users(
-                        page=current_page_val,
-                        size=current_size_val,
-                        nombre=search_nombre,
-                        rut=search_rut,
-                        email=search_email
-                    )
+                    paged_response = None
+                    cache_key = f"usuarios_list_p{current_page_val}_s{current_size_val}_q{current_search_val}"
+                    if not force_refresh:
+                        paged_response = self.cache_manager.get(cache_key)
+                    
+                    if not paged_response:
+                        paged_response = self.user_service.list_users(
+                            page=current_page_val,
+                            size=current_size_val,
+                            nombre=search_nombre,
+                            rut=search_rut,
+                            email=search_email
+                        )
+                        self.cache_manager.set(cache_key, paged_response)
+                        
                     users_list = paged_response.get("items", [])
                     result["has_next"] = paged_response.get("has_next", False)
                     result["total"] = paged_response.get("total", 0)
@@ -351,21 +389,20 @@ class UsuariosView(QWidget):
             for user in users_list:
                 user_id = str(user.get("id", ""))
                 perms_payload = me_permissions if user_id == str(me.get("id")) else None
+                is_loaded = perms_payload is not None
+                
                 if perms_payload is None:
-                    try:
-                        perms_payload = self.user_service.get_permissions(user_id)
-                    except Exception:
-                        perms_payload = {
-                            "permisos": []
-                        }
+                    perms_payload = {
+                        "permisos": []
+                    }
 
-                result["users"].append(
-                    self._build_user_from_api(
-                        user,
-                        perms_payload,
-                        result["privilege_name_by_code"],
-                    )
+                user_dict = self._build_user_from_api(
+                    user,
+                    perms_payload,
+                    result["privilege_name_by_code"],
                 )
+                user_dict["permissions_loaded"] = is_loaded
+                result["users"].append(user_dict)
 
             return result
 
@@ -411,19 +448,25 @@ class UsuariosView(QWidget):
                         module_key: (False, False, False, False, False, False)
                         for _, module_key in self.modules
                     },
+                    "permissions_loaded": True
                 }
             ]
         else:
             for user in self.users_data:
                 # Solo aplicamos el mockup (overrides) si el usuario NO tiene permisos reales del backend
                 # Si el usuario ya tiene permisos (vienen del API), esos mandan sobre la cache.
-                has_real_perms = any(any(v) for v in user["permissions"].values())
-                if not has_real_perms:
-                    self._apply_permissions_override(user)
+                if user.get("permissions_loaded", False):
+                    has_real_perms = any(any(v) for v in user["permissions"].values())
+                    if not has_real_perms:
+                        self._apply_permissions_override(user)
 
         self.current_user_index = 0
         self._populate_user_list()
-        self._update_matrix_for_user(self.current_user_index)
+        
+        if self.users_data and not self.users_data[self.current_user_index].get("permissions_loaded", False):
+            self._load_user_permissions(self.current_user_index)
+        else:
+            self._update_matrix_for_user(self.current_user_index)
 
     def _on_data_error(self, error):
         self.loading_overlay.hide_loading()
@@ -550,19 +593,32 @@ class UsuariosView(QWidget):
             
             if is_in_api:
                 # La API tiene registros para este módulo
+                m = real_backend_matrix[module_key]
+                view_val = m.get("VIEW", False)
+                
+                # 🛡️ REGLA DE ORO: Si tiene cualquier permiso (CREAR, EDITAR, etc), debe tener VER.
+                any_perm_action = any([
+                    m.get("CREATE", False),
+                    m.get("EDIT", False),
+                    m.get("DELETE", False),
+                    m.get("APPROVE", False),
+                    m.get("EXPORT", False)
+                ])
+                
                 matrix[module_key] = (
-                    real_backend_matrix[module_key].get("VIEW", False),
-                    real_backend_matrix[module_key].get("CREATE", False),
-                    real_backend_matrix[module_key].get("EDIT", False),
-                    real_backend_matrix[module_key].get("DELETE", False),
-                    real_backend_matrix[module_key].get("APPROVE", False),
-                    real_backend_matrix[module_key].get("EXPORT", False),
+                    view_val or any_perm_action, # VER implícito
+                    m.get("CREATE", False),
+                    m.get("EDIT", False),
+                    m.get("DELETE", False),
+                    m.get("APPROVE", False),
+                    m.get("EXPORT", False),
                 )
             else:
                 # No hay registro granular en API, usamos permisos por perfil/privilegios
                 # Nota: Si el perfil dice que SI (module_enabled), habilitamos VER
+                any_granular_action = any([create_access, edit_access, delete_access, approve_access, export_access])
                 matrix[module_key] = (
-                    view_access or module_enabled,
+                    view_access or module_enabled or any_granular_action,
                     create_access,
                     edit_access,
                     delete_access,
@@ -688,16 +744,23 @@ class UsuariosView(QWidget):
         left.addWidget(email)
         left.addWidget(user_id)
 
+        # 🔒 BLOQUEO ESTRICTO DE BOTONES: Solo el ADMINISTRADOR GLOBAL puede modificar estados
+        is_global_admin = hasattr(self.permission_service, "_is_admin") and self.permission_service._is_admin
+        can_edit = is_global_admin
+        can_delete = is_global_admin
+
         status = QPushButton(user["status"])
-        status.setCursor(Qt.PointingHandCursor if self.api.is_admin else Qt.ArrowCursor)
-        status.setEnabled(self.api.is_admin and bool(user.get("backend_id")))
-        status_name = user["status"].lower()
         status.setObjectName(
-            "statusBadgeInactive" if "inactivo" in status_name else "statusBadgeActive"
+            "statusBadgeInactive" if "inactivo" in user["status"].lower() else "statusBadgeActive"
         )
-        status.clicked.connect(
-            lambda _checked=False, idx=user_index: self._on_toggle_user_status(idx)
-        )
+        if not can_edit:
+            status.setAttribute(Qt.WA_TransparentForMouseEvents)
+            status.setCursor(Qt.ArrowCursor)
+        else:
+            status.setCursor(Qt.PointingHandCursor)
+            status.clicked.connect(
+                lambda _checked=False, idx=user_index: self._on_toggle_user_status(idx)
+            )
 
         packs_count = int(user.get("packs", 0) or 0)
         packs = QLabel("" if packs_count <= 0 else f"{packs_count} pack(s)")
@@ -711,21 +774,28 @@ class UsuariosView(QWidget):
         if user.get("rol_ris") == "PENDIENTE_CONFIGURACION":
             btn_add = QPushButton("Registrar")
             btn_add.setObjectName("statusBadgePending")
-            btn_add.setCursor(Qt.PointingHandCursor if self.api.is_admin else Qt.ArrowCursor)
-            btn_add.clicked.connect(
-                lambda _checked=False, idx=user_index: self._on_registrar_clicked(idx)
-            )
+            if not can_edit:
+                btn_add.setAttribute(Qt.WA_TransparentForMouseEvents)
+                btn_add.setCursor(Qt.ArrowCursor)
+            else:
+                btn_add.setCursor(Qt.PointingHandCursor)
+                btn_add.clicked.connect(
+                    lambda _checked=False, idx=user_index: self._on_registrar_clicked(idx)
+                )
             badges_layout.addWidget(btn_add)
 
         badges_layout.addWidget(status)
 
         btn_delete = QPushButton("Eliminar")
         btn_delete.setObjectName("statusBadgeDanger")
-        btn_delete.setCursor(Qt.PointingHandCursor if self.api.is_admin else Qt.ArrowCursor)
-        btn_delete.setEnabled(self.api.is_admin and bool(user.get("backend_id")))
-        btn_delete.clicked.connect(
-            lambda _checked=False, idx=user_index: self._on_delete_user_clicked(idx)
-        )
+        if not can_delete:
+            btn_delete.setAttribute(Qt.WA_TransparentForMouseEvents)
+            btn_delete.setCursor(Qt.ArrowCursor)
+        else:
+            btn_delete.setCursor(Qt.PointingHandCursor)
+            btn_delete.clicked.connect(
+                lambda _checked=False, idx=user_index: self._on_delete_user_clicked(idx)
+            )
         badges_layout.addWidget(btn_delete)
 
         right = QVBoxLayout()
@@ -745,7 +815,8 @@ class UsuariosView(QWidget):
         return card
 
     def _on_registrar_clicked(self, user_index):
-        if not self.api.is_admin:
+        # 🔒 SEGURIDAD: Solo ADMIN
+        if not hasattr(self.permission_service, "_is_admin") or not self.permission_service._is_admin:
             return
         if user_index < 0 or user_index >= len(self.users_data):
             return
@@ -773,10 +844,11 @@ class UsuariosView(QWidget):
         # Ocultar o simular carga si es necesario, pero aquí solo se muestra el form
         if dialog.exec():
             # Si el modal se guardó con éxito (HTTP 200), refrescar la lista para remover el status PENDIENTE
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=True)
 
     def _on_toggle_user_status(self, user_index):
-        if not self.api.is_admin:
+        # 🔒 SEGURIDAD: Solo ADMIN
+        if not hasattr(self.permission_service, "_is_admin") or not self.permission_service._is_admin:
             return
         if user_index < 0 or user_index >= len(self.users_data):
             return
@@ -817,7 +889,8 @@ class UsuariosView(QWidget):
         self.status_toggle_worker.start()
 
     def _on_delete_user_clicked(self, user_index):
-        if not self.api.is_admin:
+        # 🔒 SEGURIDAD: Solo ADMIN
+        if not hasattr(self.permission_service, "_is_admin") or not self.permission_service._is_admin:
             return
         if user_index < 0 or user_index >= len(self.users_data):
             return
@@ -876,7 +949,7 @@ class UsuariosView(QWidget):
             # Limpiar cache local de este usuario
             user_cache_id = self._user_cache_id({"backend_id": None, "id": None}) # Dummy call to get logic
             # En realidad mejor recargar todo
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=True)
 
     def _on_delete_user_error(self, error):
         self.loading_overlay.hide_loading()
@@ -913,25 +986,87 @@ class UsuariosView(QWidget):
         self.current_user_index = user_index
         self._populate_user_list()
         
-        # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
-        self._update_matrix_for_user(user_index)
+        user = self.users_data[user_index]
+        if not user.get("permissions_loaded", False):
+            self._load_user_permissions(user_index)
+        else:
+            # Volvemos al comportamiento original: solo actualizamos la vista con los datos ya cargados/modificados en memoria
+            self._update_matrix_for_user(user_index)
+
+    def _load_user_permissions(self, user_index):
+        if user_index < 0 or user_index >= len(self.users_data):
+            return
+            
+        user = self.users_data[user_index]
+        user_id = user.get("backend_id")
+        
+        self.loading_overlay.show_loading()
+        
+        def fetch_perms():
+            try:
+                return self.user_service.get_permissions(user_id)
+            except Exception:
+                return {"permisos": []}
+
+        def on_loaded(perms_payload):
+            self.loading_overlay.hide_loading()
+            
+            # Validamos que el usuario siga existiendo (pudo haber cambiado de página)
+            if user_index >= len(self.users_data) or self.users_data[user_index].get("backend_id") != user_id:
+                return
+                
+            permissions = self._map_permissions_to_modules(
+                perms_payload,
+                self.privilege_name_by_code,
+            )
+            
+            user["packs"] = len((perms_payload or {}).get("packs", []))
+            user["permissions"] = permissions.get("matrix", {})
+            user["action_ids"] = permissions.get("action_ids", {})
+            user["permissions_loaded"] = True
+            
+            has_real_perms = any(any(v) for v in user["permissions"].values())
+            if not has_real_perms:
+                self._apply_permissions_override(user)
+                
+            self._populate_user_list()
+            # Actualizamos la matriz si el usuario sigue seleccionado
+            if self.current_user_index == user_index:
+                self._update_matrix_for_user(user_index)
+            
+        def on_error(err):
+            self.loading_overlay.hide_loading()
+            if self.current_user_index == user_index:
+                self._update_matrix_for_user(user_index)
+
+        worker = ApiWorker(fetch_perms)
+        self.active_workers.append(worker)
+        
+        def on_finished():
+            if worker in self.active_workers:
+                self.active_workers.remove(worker)
+                
+        worker.finished.connect(lambda _: on_finished())
+        worker.finished.connect(on_loaded)
+        worker.error.connect(on_error)
+        worker.start()
 
     def _on_search_text_changed(self, _text):
         self.search_timer.start()
 
     def _on_search_timeout(self):
         self.current_page = 1
-        self._load_backend_data()
+        self._load_backend_data(force_refresh=True)
 
     def _on_prev_page(self):
         if self.current_page > 1:
             self.current_page -= 1
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=False)
 
     def _on_next_page(self):
         if self.has_next:
             self.current_page += 1
-            self._load_backend_data()
+            self._load_backend_data(force_refresh=False)
 
     def _update_matrix_for_user(self, user_index):
         if not self.users_data:
@@ -968,6 +1103,10 @@ class UsuariosView(QWidget):
         self.table.setItem(row, col, item)
 
     def _on_permission_cell_clicked(self, row, col):
+        # 🔒 BLOQUEO ESTRICTO: Solo un ADMINISTRADOR GLOBAL real puede modificar la matriz
+        if not hasattr(self.permission_service, "_is_admin") or not self.permission_service._is_admin:
+            return
+            
         if col == 0:
             return
         if not self.users_data:
@@ -1059,10 +1198,22 @@ class UsuariosView(QWidget):
             self._persist_user_permissions_override(user)
 
     def _update_edit_hint(self):
-        self.matrix_edit_hint.setText(
-            "Haz clic en una celda para activar/desactivar permisos. "
-            "Los cambios se guardan automáticamente en el servidor."
-        )
+        # Solo el ADMIN GLOBAL puede modificar
+        is_admin = hasattr(self.permission_service, "_is_admin") and self.permission_service._is_admin
+        if not is_admin:
+            self.matrix_edit_hint.setText(
+                "Modo de solo lectura: Estos son sus permisos actuales y no pueden ser modificados."
+            )
+            # Desactivamos el cursor de puntero (mano) en la tabla para que se sienta fija
+            self.table.setCursor(Qt.ArrowCursor)
+            self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        else:
+            self.matrix_edit_hint.setText(
+                "Haz clic en una celda para activar/desactivar permisos. "
+                "Los cambios se guardan automáticamente en el servidor."
+            )
+            self.table.setCursor(Qt.PointingHandCursor)
+
 
     def _load_permissions_overrides(self):
         cached = self.cache_manager.get(self.permissions_cache_key)

@@ -18,6 +18,7 @@ from src.components.user_inactive_dialog import UserInactiveDialog
 from src.services.logger_service import LoggerService
 from src.workers.jwt_utils import decode_jwt
 from src.services.permission_service import PermissionService
+from src.services.inventory_cache_service import InventoryCacheService
 
 
 
@@ -165,6 +166,20 @@ class LoginView(QWidget):
         if not user or not password:
             self._set_error("Debe ingresar usuario y contraseña")
             return
+            
+        if "-" not in user:
+            from src.components.alert_dialog import AlertDialog
+            dialog = AlertDialog(
+                title="Formato de Usuario Inválido",
+                message="El RUT ingresado debe incluir su dígito verificador separado por un guión.\n\nFormato esperado: 99999999-9",
+                icon_path="src/resources/icons/alert_warning.svg",
+                confirm_text="Entendido",
+                cancel_text="",
+                parent=self
+            )
+            dialog.exec()
+            self.user_input.setFocus()
+            return
 
         self.status_label.setText("")
         LoggerService().log_event(f"Intento de inicio de sesión: {user}")
@@ -217,14 +232,28 @@ class LoginView(QWidget):
         try:
             me_data = api.get("/users/me")
             api.set_rol_ris(me_data.get("rol_ris") or "")
+            
+            # Guardamos el nombre completo para pre-llenado de formularios
+            full_name = me_data.get("nombre_completo") or f"{me_data.get('nombre', '')} {me_data.get('apellido', '')}".strip()
+            api.set_user_name(full_name or "Usuario Actual")
         except Exception:
             api.set_rol_ris("")
+            api.set_user_name("")
+            
+        # 🚀 Refrescar cache de inventario en segundo plano al iniciar sesión
+        InventoryCacheService().refresh_inventory_cache()
 
         self.main_window = MainWindow()
-        self.main_window.logout_signal.connect(self.show)
+        self.main_window.logout_signal.connect(self._on_logout)
         self.main_window.show()
 
         self.hide()
+
+    def _on_logout(self):
+        """Handler para limpiar la vista al cerrar sesión."""
+        self._reset_login_form()
+        self.status_label.setText("")
+        self.show()
 
     def _reset_login_form(self):
         """Limpia el formulario y devuelve el foco al usuario."""

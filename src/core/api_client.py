@@ -20,6 +20,7 @@ class ApiClient:
         self.base_url = API_BASE_URL.rstrip('/')
         self.token = None
         self.user_id = None
+        self.user_name = None
         self.rol_ris = None
         self._initialized = True
 
@@ -54,12 +55,16 @@ class ApiClient:
     def set_user_id(self, user_id: str):
         self.user_id = user_id
 
+    def set_user_name(self, name: str):
+        self.user_name = name
+
     def set_rol_ris(self, rol_ris: str):
         self.rol_ris = rol_ris
 
     def clear_session(self):
         self.token = None
         self.user_id = None
+        self.user_name = None
         self.rol_ris = None
 
     def _headers(self):
@@ -80,23 +85,48 @@ class ApiClient:
     # ===============================
     def get(self, path: str, params: dict = None):
         url = self._build_url(path)
-        response = requests.get(url, headers=self._headers(), params=params)
-        response.raise_for_status()
-        return response.json()
+        print(f"[API REQUEST] GET {url} | Params: {params}")
+        try:
+            response = requests.get(url, headers=self._headers(), params=params)
+            print(f"[API RESPONSE] {response.status_code} GET {path}")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"[API ERROR] GET {path}: {str(e)}")
+            raise e
 
     def get_raw(self, path: str, params: dict = None):
         url = self._build_url(path)
-        response = requests.get(url, headers=self._headers(), params=params)
-        response.raise_for_status()
-        return response.content
+        print(f"[API REQUEST] GET RAW {url}")
+        try:
+            response = requests.get(url, headers=self._headers(), params=params)
+            print(f"[API RESPONSE] {response.status_code} GET RAW {path}")
+            response.raise_for_status()
+            return response.content
+        except Exception as e:
+            print(f"[API ERROR] GET RAW {path}: {str(e)}")
+            raise e
 
     # ===============================
     # POST
     # ===============================
     def post(self, path: str, data: dict):
         url = self._build_url(path)
+        print(f"[API REQUEST] POST {url} | Data: {data}")
         response = requests.post(url, json=data, headers=self._headers())
-        response.raise_for_status()
+        print(f"[API RESPONSE] {response.status_code} POST {path}")
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 422:
+                try:
+                    detail = response.json().get("detail")
+                    print(f"[API ERROR 422] Errores de validación en {path}: {detail}")
+                except Exception:
+                    print(f"[API ERROR 422] Fallo de validación en {path}: {response.text}")
+            else:
+                 print(f"[API ERROR] POST {path} ({response.status_code}): {response.text}")
+            raise e
         return response.json()
 
     # ===============================
@@ -104,8 +134,14 @@ class ApiClient:
     # ===============================
     def delete(self, path: str):
         url = self._build_url(path)
+        print(f"[API REQUEST] DELETE {url}")
         response = requests.delete(url, headers=self._headers())
-        response.raise_for_status()
+        print(f"[API RESPONSE] {response.status_code} DELETE {path}")
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(f"[API ERROR] DELETE {path}: {str(e)}")
+            raise e
         return response.json() if response.content else None
     
     # ===============================
@@ -113,8 +149,14 @@ class ApiClient:
     # ===============================
     def put(self, path: str, payload: dict):
         url = self._build_url(path)
+        print(f"[API REQUEST] PUT {url} | Payload: {payload}")
         response = requests.put(url, json=payload, headers=self._headers())
-        response.raise_for_status()
+        print(f"[API RESPONSE] {response.status_code} PUT {path}")
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(f"[API ERROR] PUT {path}: {str(e)}")
+            raise e
         return response.json()
 
     # ===============================
@@ -122,6 +164,12 @@ class ApiClient:
     # ===============================
     def patch(self, path: str, payload: dict):
         url = self._build_url(path)
+        print(f"[API REQUEST] PATCH {url} | Payload: {payload}")
         response = requests.patch(url, json=payload, headers=self._headers())
-        response.raise_for_status()
+        print(f"[API RESPONSE] {response.status_code} PATCH {path}")
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(f"[API ERROR] PATCH {path}: {str(e)}")
+            raise e
         return response.json()

@@ -12,7 +12,7 @@ from PySide6.QtGui import QTextDocument, QActionGroup
 from PySide6.QtPrintSupport import QPrinter
 import csv
 import base64
-from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool, QPoint
+from PySide6.QtCore import Qt, QTimer, QDateTime, QLocale, QThreadPool, QPoint, Signal
 
 from src.core.api_client import ApiClient
 from src.services.catalogo_service import CatalogoService
@@ -21,6 +21,7 @@ from src.workers.api_worker import ApiWorker
 from src.workers.combo_loader import ComboLoaderRunnable
 from src.components.alert_dialog import AlertDialog
 from src.components.loading_overlay import LoadingOverlay
+from src.components.module_info_dialog import ModuleInfoDialog
 from src.components.dialog_registry import get_dialog_class
 from src.services.user_service import UserService
 from src.services.permission_service import PermissionService
@@ -28,6 +29,8 @@ from src.services.permission_service import PermissionService
 from utils import icon
 
 class GenericGridView(QWidget):
+    info_requested = Signal(str) # Nueva señal pasando el título del indicador
+    
     def __init__(self, config_path: str, parent=None):
         super().__init__(parent)
         
@@ -144,19 +147,35 @@ class GenericGridView(QWidget):
             stats_layout = QHBoxLayout()
             stats_layout.setSpacing(16)
             
-            # Sort indicators by order
-            indicators = sorted(self.config["indicadores"], key=lambda x: x.get("order", 0))
+            # Sort indicators by orden
+            indicators = sorted(self.config["indicadores"], key=lambda x: x.get("orden", 0))
             
             for ind in indicators:
-                card = self._create_stat_card(ind["titulo"], "0")
-                self.indicators_ui[ind["campo_api"]] = card
+                card = self._create_stat_card(
+                    ind.get("titulo", ""), 
+                    "",
+                    description=ind.get("descripcion"),
+                    link_text=ind.get("texto_link")
+                )
+                card.setMinimumWidth(220)
+                
+                # Soportar múltiples tarjetas para el mismo campo API
+                field_api = ind["campo_api"]
+                if field_api not in self.indicators_ui:
+                    self.indicators_ui[field_api] = []
+                
+                if isinstance(self.indicators_ui[field_api], list):
+                    self.indicators_ui[field_api].append(card)
+                else:
+                    self.indicators_ui[field_api] = [card]
+
                 stats_layout.addWidget(card)
                 
             layout.addLayout(stats_layout)
         
         # 3. Filters & Actions Bar
-        filters_layout = QHBoxLayout()
-        filters_layout.setSpacing(10)
+        self.filters_layout = QHBoxLayout()
+        self.filters_layout.setSpacing(10)
         
         # Search (always visible as grid standard)
         search_config = self.config.get("buscador", {})
@@ -173,8 +192,7 @@ class GenericGridView(QWidget):
         )
         search_action.setToolTip("Buscar")
         search_action.triggered.connect(self._on_search)
-        
-        filters_layout.addWidget(self.search_input)
+        self.filters_layout.addWidget(self.search_input)
 
         # Column filter (standard)
         self.column_filter_combo = QComboBox()
@@ -183,27 +201,27 @@ class GenericGridView(QWidget):
         self.column_filter_combo.setMaximumWidth(180)
         self.column_filter_combo.addItem("Filtrar en: Todas las columnas", "__all__")
         for col in self.columns:
-            if col.get("visible", True):
+            if col.get("visible", True) and col.get("buscable", True):
                 self.column_filter_combo.addItem(
                     f"Filtrar en: {col['etiqueta']}",
                     col["campo_api"],
                 )
         self.column_filter_combo.currentIndexChanged.connect(self._on_search)
-        filters_layout.addWidget(self.column_filter_combo)
+        self.filters_layout.addWidget(self.column_filter_combo)
 
         # Refresh
         self.refresh_btn = QPushButton("Actualizar")
         self.refresh_btn.setObjectName("gridToolbarActionButton")
         self.refresh_btn.clicked.connect(self._reload_all)
-        filters_layout.addWidget(self.refresh_btn)
+        self.filters_layout.addWidget(self.refresh_btn)
             
         # Clear Filters Button
         self.clear_filters_btn = QPushButton("Limpiar filtros")
         self.clear_filters_btn.setObjectName("gridToolbarActionButton")
         self.clear_filters_btn.clicked.connect(self._clear_filters)
-        filters_layout.addWidget(self.clear_filters_btn)
+        self.filters_layout.addWidget(self.clear_filters_btn)
         
-        filters_layout.addStretch()
+        self.filters_layout.addStretch()
         
         # View Controls (standard)
         self.columns_btn = QPushButton("Columnas")
@@ -217,18 +235,36 @@ class GenericGridView(QWidget):
             action.toggled.connect(partial(self._toggle_column_visibility, i))
             self.column_toggle_actions[i] = action
         self.columns_btn.setMenu(self.columns_menu)
-        filters_layout.addWidget(self.columns_btn)
+        self.filters_layout.addWidget(self.columns_btn)
 
         # Export button (penultimate)
         self.export_btn = QPushButton("Exportar Grilla")
         self.export_btn.setObjectName("gridExportButton")
-        export_menu = QMenu(self)
-        csv_action = export_menu.addAction("Exportar a CSV")
-        pdf_action = export_menu.addAction("Exportar a PDF")
-        csv_action.triggered.connect(self._export_csv)
-        pdf_action.triggered.connect(self._export_pdf)
-        self.export_btn.setMenu(export_menu)
-        filters_layout.addWidget(self.export_btn)
+        
+        export_config = self.config.get("exportar", {})
+        allowed_formats = export_config.get("formatos", ["csv", "pdf"]) # Default to both
+        
+        if len(allowed_formats) > 1:
+            export_menu = QMenu(self)
+            if "csv" in allowed_formats:
+                csv_action = export_menu.addAction("Exportar a CSV")
+                csv_action.triggered.connect(self._export_csv)
+            if "pdf" in allowed_formats:
+                pdf_action = export_menu.addAction("Exportar a PDF")
+                pdf_action.triggered.connect(self._export_pdf)
+            self.export_btn.setMenu(export_menu)
+        elif len(allowed_formats) == 1:
+            fmt = allowed_formats[0].lower()
+            if fmt == "csv":
+                self.export_btn.clicked.connect(self._export_csv)
+            elif fmt == "pdf":
+                self.export_btn.clicked.connect(self._export_pdf)
+        
+        # Check if export is enabled in config (default True for backward compatibility)
+        if export_config.get("habilitado", True):
+            self.filters_layout.addWidget(self.export_btn)
+        else:
+            self.export_btn.hide()
 
         # New Button
         new_btn_config = self.config.get("boton_nuevo", {})
@@ -243,7 +279,7 @@ class GenericGridView(QWidget):
                 self.new_button.setToolTip("No tiene permisos para crear registros")
                 self.new_button.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
             
-            filters_layout.addWidget(self.new_button)
+            self.filters_layout.addWidget(self.new_button)
             
         # 🛡️ Permiso EXPORTAR (Botón General)
         if not self.permission_service.has_permission(self.perm_module, "EXPORTAR"):
@@ -251,7 +287,8 @@ class GenericGridView(QWidget):
             self.export_btn.setToolTip("No tiene permisos para exportar")
             self.export_btn.setStyleSheet("background-color: #cbd5e1; color: #64748b; border: none;")
 
-        layout.addLayout(filters_layout)
+        layout.addLayout(self.filters_layout)
+        layout.setSpacing(5) # Reducir espacio global
         
         # 4. Table
         columns = self.columns
@@ -311,6 +348,7 @@ class GenericGridView(QWidget):
             self.next_btn.clicked.connect(self._next_page)
             
             pagination_layout = QHBoxLayout()
+            pagination_layout.setContentsMargins(0, 0, 0, 0) # Sin márgenes extra
             pagination_layout.addStretch()
             pagination_layout.addWidget(self.prev_btn)
             pagination_layout.addWidget(self.page_label)
@@ -321,22 +359,119 @@ class GenericGridView(QWidget):
             
         layout.addStretch()
 
-    def _create_stat_card(self, title, value):
+
+    def _create_stat_card(self, title, value, description=None, link_text=None):
         card = QFrame()
         card.setObjectName("statCard")
+        card.setMaximumHeight(125) # Reducir altura un 10% adicional
+
+        layout = QVBoxLayout(card)
+        layout.setSpacing(2)
+        layout.setContentsMargins(12, 6, 12, 6) # Márgenes más ajustados
 
         t = QLabel(title)
         t.setObjectName("statTitle")
+        if description: # Si es la tarjeta informativa, poner título en negrita
+            t.setStyleSheet("font-weight: bold;")
+        layout.addWidget(t)
+
+        if description:
+            d = QLabel(description)
+            d.setObjectName("statDescription")
+            d.setWordWrap(True)
+            d.setStyleSheet("font-size: 11px; line-height: 1.2;") # Smaller font
+            layout.addWidget(d)
 
         v = QLabel(value)
         v.setObjectName("statValue")
-
-        layout = QVBoxLayout(card)
-        layout.addWidget(t)
+        if not value:
+            v.hide()
         layout.addWidget(v)
+
+        if link_text:
+            l = QLabel(f'<a href="info" style="color: #0072ce; text-decoration: none;">{link_text}</a>')
+            l.setObjectName("statLink")
+            l.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+            l.setStyleSheet("font-size: 11px;")
+            
+            # Conectar acción específica para tarjetas informativas (Inventario, RAT, etc)
+            informational_titles = ["Inventario", "RAT", "EIPD", "Seguimiento"] 
+            if title in informational_titles:
+                l.linkActivated.connect(lambda _: self._show_informational_view(title))                
+            layout.addWidget(l)
 
         card.value_label = v
         return card
+
+    def _show_informational_view(self, title):
+        """Muestra un popup con la información del módulo según el título"""
+        content = ""
+        if title == "Inventario":
+            content = """
+            <div style="font-size: 15px; color: #333; line-height: 1.6;">
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-bottom: 5px;">Inventario.</p>
+                <p style="color: #555; margin-top: 0px;">Catastro de activos de datos personales, bases, sistemas, archivos y repositorios gestionados por la institución.</p>
+
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-top: 25px;">¿Qué es el Inventario?</p>
+
+                <p>El Inventario es el registro estructurado de los activos de datos que existen en la institución. Incluye, entre otros elementos, bases de datos, sistemas, archivos, registros y otros repositorios que contienen o utilizan datos personales.</p>
+                
+                <p>Su objetivo es entregar una visión general y organizada de los recursos de información disponibles, permitiendo identificar qué activos existen, quiénes son responsables de ellos, qué nivel de confidencialidad poseen, en qué estado se encuentran y en qué unidad se administran.</p>
+                
+                <p>Este módulo constituye una base para la gobernanza de datos, ya que permite conocer el universo de activos institucionales y apoyar procesos de control, priorización, resguardo, interoperabilidad y mejora continua.</p>
+            </div>
+            """
+        elif title == "RAT":
+            content = """
+            <div style="font-size: 15px; color: #333; line-height: 1.6;">
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-bottom: 5px;">RAT</p>
+                <p style="color: #555; margin-top: 0px;">Registro de Actividades de Tratamiento de datos personales realizadas por la institución.</p>
+
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-top: 25px;">¿Qué es un RAT?</p>
+
+                <p>El RAT corresponde al Registro de Actividades de Tratamiento. Su función es documentar de manera ordenada qué tratamientos de datos personales realiza la institución, con qué finalidad se efectúan, qué tipos de datos se utilizan, quiénes intervienen en el proceso, cuál es la base que justifica el tratamiento y qué medidas de resguardo se aplican.</p>
+                
+                <p>Este registro permite dar trazabilidad al uso de los datos, fortalecer el cumplimiento normativo y facilitar la gestión institucional sobre procesos que involucran información personal. En términos prácticos, el RAT ayuda a identificar cómo circulan los datos dentro de la organización, qué unidades participan y cuáles son los principales resguardos asociados.</p>
+            </div>
+            """
+        elif title == "EIPD":
+            content = """
+            <div style="font-size: 15px; color: #333; line-height: 1.6;">
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-bottom: 5px;">EIPID</p>
+                <p style="color: #555; margin-top: 0px;">Evaluación de impacto para identificar y mitigar riesgos en el tratamiento de datos personales.</p>
+
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-top: 25px;">¿Qué es una EIPID?</p>
+
+                <p>La EIPID corresponde a una Evaluación de Impacto asociada al tratamiento de datos personales. Su propósito es analizar, antes o durante la ejecución de una iniciativa, los posibles riesgos que podrían afectar la privacidad, la protección de datos y los derechos de las personas.</p>
+                
+                <p>Esta evaluación permite revisar aspectos como la naturaleza de los datos tratados, la finalidad del tratamiento, los accesos, las transferencias, la exposición a incidentes y las medidas de mitigación disponibles. De este modo, la EIPID ayuda a prevenir problemas, fortalecer la toma de decisiones y promover un tratamiento responsable de la información.</p>
+                
+                <p>En la práctica, este instrumento es clave para anticiparse a impactos negativos y para incorporar criterios de resguardo desde el diseño y operación de procesos, sistemas o proyectos.</p>
+            </div>
+            """
+        elif title == "Seguimiento":
+            content = """
+            <div style="font-size: 15px; color: #333; line-height: 1.6;">
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-bottom: 5px;">Seguimiento de riesgos</p>
+                <p style="color: #555; margin-top: 0px;">Monitoreo de riesgos identificados y del avance de sus medidas de mitigación.</p>
+
+                <p style="font-size: 18px; font-weight: bold; color: #004a99; margin-top: 25px;">¿Qué es el seguimiento de riesgos?</p>
+
+                <p>El seguimiento de riesgos es el proceso mediante el cual la institución revisa de forma periódica los riesgos detectados en materia de tratamiento de datos personales, seguridad de la información y cumplimiento asociado.</p>
+                
+                <p>Su finalidad es mantener control sobre los riesgos ya identificados, verificar su estado, revisar si las medidas comprometidas han sido implementadas y evaluar si persisten brechas que requieran nuevas acciones. Esto permite pasar desde una evaluación inicial a una gestión continua y trazable.</p>
+                
+                <p>Este módulo facilita la supervisión institucional, la priorización de acciones correctivas y la generación de evidencia para la toma de decisiones. También contribuye a fortalecer la responsabilidad de las unidades involucradas y a mantener actualizado el estado de exposición frente a riesgos relevantes.</p>
+            </div>
+            """
+
+        if content:
+            dialog = ModuleInfoDialog(
+                title="Sistema de Inventario y Gestión de Datos Personales - SINGDAP",
+                content_html=content,
+                parent=self
+            )
+            dialog.exec()
 
     def _update_datetime(self):
         locale = QLocale(QLocale.Spanish, QLocale.Chile)
@@ -420,14 +555,20 @@ class GenericGridView(QWidget):
                 return {"listado": [], "indicadores": None, "blocked": True}
 
             # Build URL
-            base_url = self.config["endpoints"]["listado"]
-            url = f"{base_url}?page={page}&size={size}"
+            # Construccion robusta con params
+            params = {
+                "page": page,
+                "size": size
+            }
             
-            for param, value in filters.items():
-                if value:
-                    url += f"&{param}={value}"
+            search_param = self.config.get("buscador", {}).get("param_api")
+            if search_param:
+                search_text = self.search_input.text().strip()
+                if search_text:
+                    params[search_param] = search_text
             
-            main_data = self.api.get(url)
+            main_url = self.config["endpoints"]["listado"]
+            main_data = self.api.get(main_url, params=params)
             
             indicadores_data = None
             if self.config.get("endpoints", {}).get("indicadores"):
@@ -503,7 +644,10 @@ class GenericGridView(QWidget):
 
         if hasattr(self, "page_label"):
             self.page_label.setText(f"Página {self.current_page} de {self.total_pages}")
+        
+        self._update_table_height()
         self._refresh_header_filter_icons()
+
 
     def _apply_local_search(self, items):
         query = self.search_input.text().strip().lower()
@@ -608,10 +752,18 @@ class GenericGridView(QWidget):
         self.table.setColumnHidden(col_index, not checked)
 
     def _update_table_height(self):
-        base_height = 40
-        height = base_height + (self.page_size * self.row_height)
-        self.table.setMinimumHeight(height)
-        self.table.setMaximumHeight(height)
+        base_height = 35 # Cabecera más compacta
+        # Usamos rowCount real para que si hay menos de 10, se encoja
+        row_count = self.table.rowCount()
+        height = base_height + (row_count * self.row_height)
+        
+        # Pero no más de page_size * row_height para mantener el límite solicitado
+        max_h = base_height + (self.page_size * self.row_height)
+        final_h = min(height, max_h)
+        
+        self.table.setMinimumHeight(final_h)
+        self.table.setMaximumHeight(final_h)
+
 
     def _column_width(self, col_config):
         width = col_config.get("ancho")
@@ -642,12 +794,23 @@ class GenericGridView(QWidget):
             else:
                 data = {}
                 
-        for ind_config in self.config.get("indicadores", []):
-            field = ind_config["campo_api"]
-            card = self.indicators_ui.get(field)
-            if card and hasattr(card, 'value_label'):
-                val = data.get(field, 0)
-                card.value_label.setText(str(val))
+        for field, cards in self.indicators_ui.items():
+            val = data.get(field)
+            if val is None:
+                val = "" if field == "placeholder" else 0
+            
+            # Si cards no es lista (por retrocompatibilidad si algo falló), lo volvemos lista
+            if not isinstance(cards, list):
+                cards = [cards]
+                
+            for card in cards:
+                if hasattr(card, 'value_label'):
+                    card.value_label.setText(str(val))
+                    # Asegurar que se muestre si tiene valor
+                    if str(val) != "":
+                        card.value_label.show()
+                    else:
+                        card.value_label.hide()
 
     def _invalidate_rat_catalog_cache_if_needed(self):
         # El catálogo de RAT se usa en EIPD; tras mutaciones en grilla RAT se debe refrescar.

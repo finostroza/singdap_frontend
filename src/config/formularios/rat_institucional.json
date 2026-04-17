@@ -178,13 +178,7 @@
                     "description": "Productos o resultados generados por el tratamiento.",
                     "type": "textarea",
                     "required": true
-                }
-            ]
-        },
-        {
-            "title": "3. Base normativa habilitante",
-            "description": "Fundamento legal que sustenta el tratamiento.",
-            "fields": [
+                },
                 {
                     "key": "base_licitud_inst",
                     "label": "Mecanismo habilitante del tratamiento",
@@ -204,7 +198,7 @@
             ]
         },
         {
-            "title": "4. Titulares de los datos",
+            "title": "3. Titulares de los datos",
             "description": "Identificación de los titulares y categorías de datos.",
             "fields": [
                 {
@@ -214,8 +208,37 @@
                     "type": "combo",
                     "multiple": true,
                     "source": "/catalogos/rat/categoria-datos-personales",
-                    "cache_key": "catalogo_rat_categoria_datos_personales",
+                    "cache_key": "catalogo_rat_categoria_datos_personales_v2",
+                    "triggers_reload": [
+                        "categorias_datos_sensibles_inst"
+                    ],
                     "required": true
+                },
+                {
+                    "key": "categorias_datos_sensibles_inst",
+                    "label": "Especificación de datos sensibles",
+                    "description": "Especifique el tipo de dato personal sensible contenido en el tratamiento.",
+                    "type": "combo",
+                    "multiple": true,
+                    "depends_on": "categorias_datos_inst",
+                    "depends_type": "nested",
+                    "nested_key": "subcategorias",
+                    "required": true,
+                    "visible_when": {
+                        "field": "categorias_datos_inst",
+                        "contains": "Datos sensibles"
+                    }
+                },
+                {
+                    "key": "categorias_datos_otro_inst",
+                    "label": "Especifique Otro tipo de dato",
+                    "description": "Indique la naturaleza de los otros datos personales tratados.",
+                    "type": "text",
+                    "required": true,
+                    "visible_when": {
+                        "field": "categorias_datos_sensibles_inst",
+                        "contains": "Otros datos personales"
+                    }
                 },
                 {
                     "key": "poblaciones_vulnerables_inst",
@@ -226,6 +249,17 @@
                     "source": "/catalogos/rat/poblacion-especial",
                     "cache_key": "catalogo_rat_poblacion-especial",
                     "required": true
+                },
+                {
+                    "key": "poblaciones_vulnerables_otro_inst",
+                    "label": "Especifique Otra población o grupo",
+                    "description": "Indique la naturaleza del grupo vulnerable no listado.",
+                    "type": "text",
+                    "required": true,
+                    "visible_when": {
+                        "field": "poblaciones_vulnerables_inst",
+                        "contains": "Otra"
+                    }
                 },
                 {
                     "key": "tipos_datos",
@@ -246,11 +280,40 @@
                     "required": true
                 },
                 {
+                    "key": "activo_id_titulares",
+                    "label": "Seleccione Activo del Inventario",
+                    "type": "combo",
+                    "multiple": true,
+                    "source": "/activos/catalogos",
+                    "cache_key": "catalogo_inventario_activos",
+                    "required": true,
+                    "visible_when": {
+                        "field": "origen_datos_titulares",
+                        "contains": "Inventario"
+                    }
+                },
+                {
                     "key": "medio_recoleccion_titulares",
                     "label": "Medio recoleccion",
-                    "description": "Nombre sistema informatico; RIS Web; Repositorios NAS; Casilla SFTP",
+                    "description": "Seleccione el medio de recolección de los datos.",
+                    "type": "combo",
+                    "source": "/catalogos/rat/medio-recoleccion",
+                    "cache_key": "catalogo_rat_medio_recoleccion_tit",
+                    "required": true,
+                    "visible_when": {
+                        "field": "origen_datos_titulares",
+                        "contains": "Otra"
+                    }
+                },
+                {
+                    "key": "medio_recoleccion_otro_titulares",
+                    "label": "Especifique el Medio de recolección",
                     "type": "text",
-                    "required": true
+                    "required": true,
+                    "visible_when": {
+                        "field": "medio_recoleccion_titulares",
+                        "contains": "Otra"
+                    }
                 },
                 {
                     "key": "volumen_datos",
@@ -285,7 +348,7 @@
             ]
         },
         {
-            "title": "5. Origen y recolección de los datos",
+            "title": "4. Origen y recolección de los datos",
             "description": "Fuente y mecanismo de obtención.",
             "fields": [
                 {
@@ -312,7 +375,7 @@
             ]
         },
         {
-            "title": "6. Ciclo de vida de los datos personales",
+            "title": "5. Ciclo de vida de los datos personales",
             "description": "Período de retención y disposición final.",
             "fields": [
                 {
@@ -353,7 +416,7 @@
             ]
         },
         {
-            "title": "7. Flujos de información",
+            "title": "6. Flujos de información",
             "description": "Identificación y descripción de flujos de datos personales.",
             "fields": [
                 {
@@ -373,7 +436,7 @@
             ]
         },
         {
-            "title": "8. Documentación revisada",
+            "title": "7. Documentación revisada",
             "description": "Documentos normativos o técnicos revisados.",
             "fields": [
                 {
@@ -386,7 +449,7 @@
             ]
         },
         {
-            "title": "9. Identificación inicial de riesgos",
+            "title": "8. Identificación inicial de riesgos",
             "description": "Identificación preliminar de riesgos.",
             "fields": [
                 {
@@ -409,7 +472,7 @@
             ]
         },
         {
-            "title": "10. Conclusión",
+            "title": "9. Conclusión",
             "description": "Resumen y validación final.",
             "fields": [
                 {

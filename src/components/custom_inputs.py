@@ -44,6 +44,15 @@ class CheckableComboBox(QComboBox):
                 res.append(item.data(Qt.UserRole))
         return res
 
+    def get_selected_texts(self):
+        # Return list of selected display labels
+        res = []
+        for i in range(self.model().rowCount()):
+            item = self.model().item(i)
+            if item.checkState() == Qt.Checked:
+                res.append(item.text())
+        return res
+
     def setCurrentData(self, data_list):
         # Data list should be a list of IDs
         if not isinstance(data_list, list):
