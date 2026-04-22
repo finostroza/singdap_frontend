@@ -11,7 +11,9 @@
         "eliminar": "/rat/{id}",
         "duplicar": "/rat/{id}/nueva-version",
         "exportar_pdf": "/rat/exportar-pdf-grilla",
-        "exportar_detalle_pdf": "/rat/{id}/exportar-pdf"
+        "exportar_detalle_pdf": "/rat/{id}/exportar-pdf",
+        "exportar_csv": "/rat/exportar-csv-grilla",
+        "exportar_detalle_csv": "/rat/{id}/exportar-csv"
     },
     "campo_id": "rat_id",
     "columnas": [

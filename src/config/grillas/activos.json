@@ -11,7 +11,9 @@
         "editar": "/activos/{id}",
         "eliminar": "/activos/{id}",
         "exportar_pdf": "/activos/exportar-pdf-grilla",
-        "exportar_detalle_pdf": "/activos/{id}/exportar-pdf"
+        "exportar_detalle_pdf": "/activos/{id}/exportar-pdf",
+        "exportar_csv": "/activos/exportar-csv-grilla",
+        "exportar_detalle_csv": "/activos/{id}/exportar-csv"
     },
     "campo_id": "activo_id",
     "columnas": [
@@ -34,6 +36,7 @@
         {
             "campo_api": "tipo_activo",
             "etiqueta": "Tipo",
+            "filtrar_en": "tipo",
             "visible": true,
             "ancho": 100,
             "stretch": false,
@@ -42,6 +45,7 @@
         {
             "campo_api": "estado_activo",
             "etiqueta": "Estado",
+            "filtrar_en": "estado",
             "visible": true,
             "ancho": 90,
             "stretch": false,
@@ -50,6 +54,7 @@
         {
             "campo_api": "subsecretaria",
             "etiqueta": "Subsecretaría",
+            "filtrar_en": "subsecretaria",
             "visible": true,
             "ancho": null,
             "stretch": true,
@@ -58,6 +63,7 @@
         {
             "campo_api": "division",
             "etiqueta": "División",
+            "filtrar_en": "division",
             "visible": true,
             "ancho": 120,
             "stretch": false,
@@ -66,6 +72,7 @@
         {
             "campo_api": "nivel_confidencialidad",
             "etiqueta": "Confid.",
+            "filtrar_en": "confidencialidad",
             "visible": true,
             "ancho": 90,
             "stretch": false,
@@ -74,6 +81,7 @@
         {
             "campo_api": "responsable",
             "etiqueta": "Responsable",
+            "filtrar_en": "responsable",
             "visible": true,
             "ancho": 150,
             "stretch": false,
@@ -104,7 +112,7 @@
         },
         {
             "titulo": "Con datos sensibles",
-            "campo_api": "sensible",
+            "campo_api": "datos_sensibles",
             "orden": 3
         },
         {

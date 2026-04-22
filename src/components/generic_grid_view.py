@@ -566,7 +566,13 @@ class GenericGridView(QWidget):
                 search_text = self.search_input.text().strip()
                 if search_text:
                     params[search_param] = search_text
-            
+
+            if selected_column and selected_column != "__all__":
+                for col in self.columns:
+                    if col.get("campo_api") == selected_column and col.get("filtrar_en"):
+                        params["filtrar_en"] = col["filtrar_en"]
+                        break
+
             main_url = self.config["endpoints"]["listado"]
             main_data = self.api.get(main_url, params=params)
             
@@ -1018,32 +1024,64 @@ class GenericGridView(QWidget):
         worker.start()
 
     def _export_single_row(self, record_id):
+        csv_endpoint_template = self.config.get("endpoints", {}).get("exportar_detalle_csv")
+
+        if csv_endpoint_template:
+            url = csv_endpoint_template.replace("{id}", str(record_id))
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, f"Exportar Registro {record_id}", f"registro_{record_id}.csv", "CSV (*.csv)"
+            )
+            if not file_path:
+                return
+            if not file_path.endswith('.csv'):
+                file_path += '.csv'
+
+            self.loading_overlay.show_loading()
+
+            def fetch_csv_row():
+                return self.api.get_raw(url)
+
+            def on_csv_finished(content):
+                self.loading_overlay.hide_loading()
+                try:
+                    with open(file_path, 'wb') as f:
+                        f.write(content)
+                except Exception as e:
+                    LoggerService().log_error("Error guardando CSV único", e)
+                    self._show_export_error(f"Error al guardar el archivo: {str(e)}")
+
+            worker = ApiWorker(fetch_csv_row, parent=self)
+            worker.finished.connect(on_csv_finished)
+            worker.error.connect(lambda e: (
+                self.loading_overlay.hide_loading(),
+                self._show_export_error(f"Error en la descarga del CSV: {e}")
+            ))
+            worker.start()
+            return
+
+        # Fallback: construir CSV desde endpoint de detalle
         endpoint_template = self.config.get("endpoints", {}).get("detalle")
         if not endpoint_template:
             self._show_export_error("No se ha configurado endpoint de detalle.")
             return
 
         url = endpoint_template.replace("{id}", str(record_id))
-        
+
         self.loading_overlay.show_loading()
-        
-        # Define worker task that fetches AND enriches
+
         def fetch_and_enrich():
-            # 1. Fetch Raw Data
             data = self.api.get(url)
-            if not data: 
+            if not data:
                 return None
-                
-            # 2. Enrich if form config is present
             form_config_path = self.config.get("form_config")
             if form_config_path:
                 try:
                     return self._enrich_data(data, form_config_path)
                 except Exception as e:
                     print(f"Error enriching data: {e}")
-                    return data # Fallback to raw
+                    return data
             return data
-            
+
         worker = ApiWorker(fetch_and_enrich, parent=self)
         worker.finished.connect(lambda data: self._save_single_row_csv(data, record_id))
         worker.error.connect(lambda e: (
@@ -1305,47 +1343,85 @@ class GenericGridView(QWidget):
         if self.table.rowCount() == 0:
             self._show_export_error()
             return
-            
-        file_path, _ = QFileDialog.getSaveFileName(self, "Exportar CSV", "", "CSV (*.csv)")
-        if not file_path:
-            return
-            
-        if not file_path.endswith('.csv'):
-            file_path += '.csv'
 
-        try:
-            with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                
-                # Prepara encabezados
-                headers = []
-                visible_cols = []
-                
-                for col in range(self.table.columnCount()):
-                    if self.table.isColumnHidden(col):
-                        continue
-                        
-                    header_item = self.table.horizontalHeaderItem(col)
-                    label = header_item.text() if header_item else ""
-                    if label == "Acciones":
-                        continue
-                        
-                    headers.append(label)
-                    visible_cols.append(col)
-                
-                writer.writerow(headers)
-                
-                # Prepara filas
-                for row in range(self.table.rowCount()):
-                    row_data = []
-                    for col in visible_cols:
-                        item = self.table.item(row, col)
-                        row_data.append(item.text() if item else "")
-                    writer.writerow(row_data)
-                    
-        except Exception as e:
-            LoggerService().log_error("Error exportando a CSV", e)
-            self._show_export_error(f"Error al exportar: {str(e)}")
+        endpoint = self.config.get("endpoints", {}).get("exportar_csv")
+
+        if endpoint:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Exportar CSV", "", "CSV (*.csv)")
+            if not file_path:
+                return
+            if not file_path.endswith('.csv'):
+                file_path += '.csv'
+
+            self.loading_overlay.show_loading()
+
+            def fetch_csv():
+                params = {}
+                search_param = self.config.get("buscador", {}).get("param_api")
+                if search_param and self.search_input.text():
+                    params[search_param] = self.search_input.text()
+                selected_column = self.column_filter_combo.currentData()
+                if selected_column and selected_column != "__all__":
+                    for col in self.columns:
+                        if col.get("campo_api") == selected_column and col.get("filtrar_en"):
+                            params["filtrar_en"] = col["filtrar_en"]
+                            break
+                return self.api.get_raw(endpoint, params=params)
+
+            def on_finished(content):
+                self.loading_overlay.hide_loading()
+                try:
+                    with open(file_path, 'wb') as f:
+                        f.write(content)
+                except Exception as e:
+                    LoggerService().log_error("Error guardando CSV", e)
+                    self._show_export_error(f"Error al guardar el archivo: {str(e)}")
+
+            worker = ApiWorker(fetch_csv, parent=self)
+            worker.finished.connect(on_finished)
+            worker.error.connect(lambda e: (
+                self.loading_overlay.hide_loading(),
+                self._show_export_error(f"Error en la descarga del CSV: {e}")
+            ))
+            worker.start()
+
+        else:
+            # Fallback: generación local desde la grilla visible
+            file_path, _ = QFileDialog.getSaveFileName(self, "Exportar CSV", "", "CSV (*.csv)")
+            if not file_path:
+                return
+            if not file_path.endswith('.csv'):
+                file_path += '.csv'
+
+            try:
+                with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+
+                    headers = []
+                    visible_cols = []
+
+                    for col in range(self.table.columnCount()):
+                        if self.table.isColumnHidden(col):
+                            continue
+                        header_item = self.table.horizontalHeaderItem(col)
+                        label = header_item.text() if header_item else ""
+                        if label == "Acciones":
+                            continue
+                        headers.append(label)
+                        visible_cols.append(col)
+
+                    writer.writerow(headers)
+
+                    for row in range(self.table.rowCount()):
+                        row_data = []
+                        for col in visible_cols:
+                            item = self.table.item(row, col)
+                            row_data.append(item.text() if item else "")
+                        writer.writerow(row_data)
+
+            except Exception as e:
+                LoggerService().log_error("Error exportando a CSV", e)
+                self._show_export_error(f"Error al exportar: {str(e)}")
 
     def _export_pdf(self):
         if self.table.rowCount() == 0:
@@ -1513,39 +1589,72 @@ class GenericGridView(QWidget):
             self._execute_duplicate(action_config, record_id)
 
     def _export_single_row(self, record_id):
+        csv_endpoint_template = self.config.get("endpoints", {}).get("exportar_detalle_csv")
+
+        if csv_endpoint_template:
+            url = csv_endpoint_template.replace("{id}", str(record_id))
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, f"Exportar Registro {record_id}", f"registro_{record_id}.csv", "CSV (*.csv)"
+            )
+            if not file_path:
+                return
+            if not file_path.endswith('.csv'):
+                file_path += '.csv'
+
+            self.loading_overlay.show_loading()
+
+            def fetch_csv_row():
+                return self.api.get_raw(url)
+
+            def on_csv_finished(content):
+                self.loading_overlay.hide_loading()
+                try:
+                    with open(file_path, 'wb') as f:
+                        f.write(content)
+                except Exception as e:
+                    LoggerService().log_error("Error guardando CSV único", e)
+                    self._show_export_error(f"Error al guardar el archivo: {str(e)}")
+
+            worker = ApiWorker(fetch_csv_row, parent=self)
+            worker.finished.connect(on_csv_finished)
+            worker.error.connect(lambda e: (
+                self.loading_overlay.hide_loading(),
+                self._show_export_error(f"Error en la descarga del CSV: {e}")
+            ))
+            self.worker = worker
+            worker.start()
+            return
+
+        # Fallback: construir CSV desde endpoint de detalle
         endpoint_template = self.config.get("endpoints", {}).get("detalle")
         if not endpoint_template:
             self._show_export_error("No se ha configurado endpoint de detalle.")
             return
 
         url = endpoint_template.replace("{id}", str(record_id))
-        
+
         self.loading_overlay.show_loading()
-        
-        # Define tarea en segundo plano que obtiene y enriquece la información
+
         def fetch_and_enrich():
-            # 1. Obtener Datos Crudos desde la fuente
             data = self.api.get(url)
-            if not data: 
+            if not data:
                 return None
-                
-            # 2. Enriquecer datos si existe configuración de formulario (traducir IDs a texto)
             form_config_path = self.config.get("form_config")
             if form_config_path:
                 try:
                     return self._enrich_data(data, form_config_path)
                 except Exception as e:
                     print(f"Error enriching data: {e}")
-                    return data # Fallback a crudo
+                    return data
             return data
-            
+
         worker = ApiWorker(fetch_and_enrich, parent=self)
         worker.finished.connect(lambda data: self._save_single_row_csv(data, record_id))
         worker.error.connect(lambda e: (
             self.loading_overlay.hide_loading(),
             self._show_export_error(f"Error obteniendo datos: {e}")
         ))
-        self.worker = worker # Mantener referencia
+        self.worker = worker
         worker.start()
 
     def _enrich_data(self, data, config_path):
