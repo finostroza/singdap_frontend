@@ -357,12 +357,16 @@ class RatDialog(GenericFormDialog):
 
             QApplication.setOverrideCursor(Qt.WaitCursor)
 
-            # 🔒 SOLO cambiar estado
+            # Guardar cambios actuales antes de cambiar estado
+            form_data = self._get_all_form_values()
+            self.client.put(f"/rat/{self.record_id}", form_data)
+            self._save_sections_by_type(form_data)
+
+            # Cambiar estado a ENVIADO
             self.client.put(
                 f"/rat/{self.record_id}/estado",
                 {"estado": "ENVIADO"}
             )
-
 
             self._invalidate_rat_catalog_cache()
 
