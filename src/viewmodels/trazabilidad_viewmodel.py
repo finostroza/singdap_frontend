@@ -139,7 +139,8 @@ class TrazabilidadViewModel(QObject):
         self._worker_users.finished.connect(self._handle_users_success)
         self._worker_users.error.connect(lambda e: (
             self.on_loading.emit(False), 
-            self.on_error.emit(f"Error cargando usuarios: {e}")))
+            # 🛡️ Silenciar errores de carga de usuarios en segundo plano (ej: 403 temporal)
+            print(f"[DEBUG TRAZABILIDAD] Fallo carga usuarios mapping: {e}")))
         self._worker_users.start()
 
     def _handle_users_success(self, response):
