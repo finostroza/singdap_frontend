@@ -2047,7 +2047,7 @@ class GenericFormDialog(QDialog):
                 payload = {
                     "nombre_completo": payload.get("nombre", ""),
                     "email": payload.get("email", ""),
-                    "division_id": "f10ca70b-f37d-453b-acbb-b53cc7854fb4"
+                    "division_id": "2cbf9f16-5953-4b36-9cb8-a8e9ffb62800"
                 }
             else:
                 payload = self._apply_generic_required_defaults(payload)
