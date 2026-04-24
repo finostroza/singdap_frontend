@@ -43,22 +43,34 @@ class InventoryCacheService(QObject):
             elif isinstance(data, dict):
                 items = data.get("items", [])
             
-            # 3. Filtrar y mapear
-            # Regla: solo 'activo' = 'activo'
-            # Mapeo: {id: activo_id, nombre: nombre_activo}
+            # 3. Filtrar, mapear y calcular indicadores locales
+            counts = {
+                "total_activos": len(items),
+                "activos_count": 0,
+                "en_mantencion": 0
+            }
+            
             filtered = []
             for item in items:
                 # Normalizar estado para comparación
-                estado = str(item.get("estado_activo") or "").lower()
-                if estado == "activo":
+                estado_raw = str(item.get("estado_activo") or "").lower()
+                
+                # Conteo para indicadores
+                if "activo" == estado_raw:
+                    counts["activos_count"] += 1
+                elif "mantencion" in estado_raw or "mantención" in estado_raw or "mantenimiento" in estado_raw:
+                    counts["en_mantencion"] += 1
+
+                if estado_raw == "activo":
                     filtered.append({
                         "id": item.get("activo_id"),
                         "nombre": item.get("nombre_activo")
                     })
             
-            # 4. Guardar en cache global bajo una llave conocida
+            # 4. Guardar en cache global bajo llaves conocidas
             self.cache.set("catalogo_inventario_activos", filtered)
-            print(f"[InventoryCacheService] Cache actualizado con {len(filtered)} activos de un total de {len(items)} recibidos.")
+            self.cache.set("indicadores_activos_local", counts)
+            print(f"[InventoryCacheService] Cache actualizado. Total: {counts['total_activos']}, Activos: {counts['activos_count']}, En Mantención: {counts['en_mantencion']}")
             return filtered
         except Exception as e:
             print(f"[InventoryCacheService] Error al refrescar cache: {e}")

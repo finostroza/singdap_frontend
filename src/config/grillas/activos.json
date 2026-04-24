@@ -111,8 +111,8 @@
             "orden": 2
         },
         {
-            "titulo": "Con datos sensibles",
-            "campo_api": "datos_sensibles",
+            "titulo": "Estado Activo",
+            "campo_api": "activos_count",
             "orden": 3
         },
         {

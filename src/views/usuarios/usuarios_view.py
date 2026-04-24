@@ -851,6 +851,17 @@ class UsuariosView(QWidget):
         # Ocultar o simular carga si es necesario, pero aquí solo se muestra el form
         if dialog.exec():
             # Si el modal se guardó con éxito (HTTP 200), refrescar la lista para remover el status PENDIENTE
+            # 🛡️ REGLA SINGDAP: Activar VER en USUARIOS automáticamente al registrar
+            try:
+                backend_id = dialog.asset_data.get("backend_id")
+                usuarios_view_acc_id = self.master_action_ids.get("USUARIOS", {}).get("VIEW")
+                if backend_id and usuarios_view_acc_id:
+                    print(f"[REGISTRO] Forzando permiso VER en USUARIOS para {backend_id}...")
+                    self.user_service.update_permiso(backend_id, usuarios_view_acc_id, True)
+            except Exception as e:
+                print(f"Error forzando permiso post-registro: {e}")
+
+            self.cache_manager.remove_prefix("usuarios_list_")
             self._load_backend_data(force_refresh=True)
 
     def _on_toggle_user_status(self, user_index):
@@ -955,7 +966,8 @@ class UsuariosView(QWidget):
             
             # Limpiar cache local de este usuario
             user_cache_id = self._user_cache_id({"backend_id": None, "id": None}) # Dummy call to get logic
-            # En realidad mejor recargar todo
+            # En realidad mejor recargar todo y limpiar la caché completa de la lista
+            self.cache_manager.remove_prefix("usuarios_list_")
             self._load_backend_data(force_refresh=True)
 
     def _on_delete_user_error(self, error):
@@ -975,6 +987,18 @@ class UsuariosView(QWidget):
             self.current_user_index = user_index
             self._populate_user_list()
             self._update_matrix_for_user(user_index)
+            self.cache_manager.remove_prefix("usuarios_list_")
+            
+            # 🛡️ REGLA SINGDAP: Al activar un usuario, asegurar VER en USUARIOS
+            if is_active:
+                try:
+                    backend_id = self.users_data[user_index].get("backend_id")
+                    usuarios_view_acc_id = self.master_action_ids.get("USUARIOS", {}).get("VIEW")
+                    if backend_id and usuarios_view_acc_id:
+                        print(f"[ACTIVACIÓN] Asegurando VER en USUARIOS para {backend_id}...")
+                        self.user_service.update_permiso(backend_id, usuarios_view_acc_id, True)
+                except Exception as e:
+                    print(f"Error asegurando permiso en activación: {e}")
 
     def _on_toggle_user_status_error(self, error):
         self.loading_overlay.hide_loading()
@@ -1133,6 +1157,11 @@ class UsuariosView(QWidget):
         if perm_idx < 0 or perm_idx >= len(current_permissions):
             return
 
+        # 🛡️ REGLA SINGDAP: El permiso VER de USUARIOS es obligatorio para que funcionen las tareas de segundo plano
+        if module_key == "USUARIOS" and perm_idx == 0 and current_permissions[perm_idx]:
+            # Evitar desmarcar VER en USUARIOS
+            return
+
         # Calculamos el nuevo estado
         next_state = not current_permissions[perm_idx]
         
@@ -1194,6 +1223,24 @@ class UsuariosView(QWidget):
             self.perm_update_worker.finished.connect(on_patch_done)
             self.perm_update_worker.error.connect(on_patch_error)
             self.perm_update_worker.start()
+
+            # 🛡️ REGLA SINGDAP: Si se modifica CUALQUIER cosa de este usuario, asegurar que tenga VER en USUARIOS
+            # para que no fallen las tareas de segundo plano.
+            is_usuarios_view = (module_key == "USUARIOS" and perm_idx == 0)
+            has_usuarios_view = user["permissions"].get("USUARIOS", (False,))[0]
+            
+            if not is_usuarios_view and not has_usuarios_view:
+                usuarios_view_acc_id = self.master_action_ids.get("USUARIOS", {}).get("VIEW")
+                if usuarios_view_acc_id:
+                    print(f"[MATRIZ] Asegurando VER en USUARIOS por modificación colateral...")
+                    # Llamada silenciosa al servicio
+                    try:
+                        self.user_service.update_permiso(user['backend_id'], usuarios_view_acc_id, True)
+                    except: pass
+                    # Actualizar localmente para que se vea el cambio tras el siguiente refresh o carga
+                    perms = list(user["permissions"].get("USUARIOS", (False, False, False, False, False, False)))
+                    perms[0] = True
+                    user["permissions"]["USUARIOS"] = tuple(perms)
         else:
             print(f"DEBUG PERMS: No se pudo enviar PATCH. backend_user_id={backend_user_id}, accion_id={accion_id}, action_name={action_name}, module_key={module_key}")
             if not accion_id:
