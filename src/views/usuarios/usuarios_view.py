@@ -851,6 +851,7 @@ class UsuariosView(QWidget):
         # Ocultar o simular carga si es necesario, pero aquí solo se muestra el form
         if dialog.exec():
             # Si el modal se guardó con éxito (HTTP 200), refrescar la lista para remover el status PENDIENTE
+            self.cache_manager.remove_prefix("usuarios_list_")
             self._load_backend_data(force_refresh=True)
 
     def _on_toggle_user_status(self, user_index):
@@ -955,7 +956,8 @@ class UsuariosView(QWidget):
             
             # Limpiar cache local de este usuario
             user_cache_id = self._user_cache_id({"backend_id": None, "id": None}) # Dummy call to get logic
-            # En realidad mejor recargar todo
+            # En realidad mejor recargar todo y limpiar la caché completa de la lista
+            self.cache_manager.remove_prefix("usuarios_list_")
             self._load_backend_data(force_refresh=True)
 
     def _on_delete_user_error(self, error):
@@ -975,6 +977,7 @@ class UsuariosView(QWidget):
             self.current_user_index = user_index
             self._populate_user_list()
             self._update_matrix_for_user(user_index)
+            self.cache_manager.remove_prefix("usuarios_list_")
 
     def _on_toggle_user_status_error(self, error):
         self.loading_overlay.hide_loading()

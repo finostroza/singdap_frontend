@@ -71,3 +71,12 @@ class CacheManager:
             if key in cache:
                 del cache[key]
                 self._save_cache(cache)
+
+    def remove_prefix(self, prefix):
+        with QMutexLocker(self.mutex):
+            cache = self._load_cache()
+            keys_to_delete = [k for k in cache.keys() if k.startswith(prefix)]
+            if keys_to_delete:
+                for k in keys_to_delete:
+                    del cache[k]
+                self._save_cache(cache)

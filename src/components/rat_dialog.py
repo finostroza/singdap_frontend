@@ -438,6 +438,27 @@ class RatDialog(GenericFormDialog):
             "division_id": "division",
             "responsable_tratamiento": "nombre_responsable",
             "encargado_tratamiento": "nombre_encargado",
+            
+            # --- INSTITUCIONAL (Ciclo de Vida) ---
+            "destinatario_fundamento_legal": "destinatarios_fundamento",
+            "disposicion_final": "eliminacion_disposicion",
+            "comunicaciones_transferencias": "comunicacion_transferencia",
+            "comunicaciones_transferencia": "comunicacion_transferencia",
+            "comunicacion_o_transferencia": "comunicacion_transferencia",
+            
+            # Otros mapeos para Institucional (Prevención)
+            "descripcion": "descripcion_alcance",
+            "operaciones": "operaciones_realizadas",
+            "equipos_ejecutantes": "equipos_involucrados",
+            "software": "aplicaciones_software",
+            "repositorios": "repositorios_utilizados",
+            "sistemas": "sistemas_plataformas_desc",
+            "finalidad_tratamiento": "finalidad_tratamiento_inst",
+            "resultado_esperado": "resultados_esperados",
+            "mecanismo_habilitante": "base_licitud_inst",
+            "medio_recoleccion": "medio_recoleccion_origen",
+            "flujos_sistemas": "sistemas_plataformas_flujos",
+            "flujos_descripcion": "descripcion_flujos",
         }
 
         for backend_key, form_key in key_map.items():
@@ -968,8 +989,11 @@ class RatDialog(GenericFormDialog):
             "uso_tratamiento": data.get("uso_tratamiento"),
             "almacenamiento_conservacion": data.get("almacenamiento_conservacion"),
             "comunicacion_transferencia": data.get("comunicacion_transferencia"),
+            "comunicaciones_transferencias": data.get("comunicacion_transferencia"),
             "destinatario_fundamento_legal": data.get("destinatarios_fundamento"),
+            "destinatarios_fundamento": data.get("destinatarios_fundamento"),
             "disposicion_final": data.get("eliminacion_disposicion"),
+            "eliminacion_disposicion": data.get("eliminacion_disposicion"),
             
             # Flujos y Conclusión
             "flujos_descripcion": flujos_descripcion,
